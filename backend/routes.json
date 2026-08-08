@@ -1,0 +1,422 @@
+[
+    {
+        "name": "Logout",
+        "url": "/api/v1/auth/logout",
+        "path": "/api/v1/auth/logout",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Current User",
+        "url": "/api/v1/auth/me",
+        "path": "/api/v1/auth/me",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Create User",
+        "url": "/api/v1/users",
+        "path": "/api/v1/users",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Update User",
+        "url": "/api/v1/users",
+        "path": "/api/v1/users",
+        "guard": "API",
+        "method": "PATCH"
+    },
+    {
+        "name": "Delete User",
+        "url": "/api/v1/users",
+        "path": "/api/v1/users",
+        "guard": "API",
+        "method": "DELETE"
+    },
+    {
+        "name": "List Users",
+        "url": "/api/v1/users/list",
+        "path": "/api/v1/users/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "User Detail",
+        "url": "/api/v1/users/detail",
+        "path": "/api/v1/users/detail",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Assign User Roles",
+        "url": "/api/v1/users/assign_roles",
+        "path": "/api/v1/users/assign_roles",
+        "guard": "API",
+        "method": "PATCH"
+    },
+    {
+        "name": "Create Role",
+        "url": "/api/v1/roles",
+        "path": "/api/v1/roles",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Update Role",
+        "url": "/api/v1/roles",
+        "path": "/api/v1/roles",
+        "guard": "API",
+        "method": "PATCH"
+    },
+    {
+        "name": "Delete Role",
+        "url": "/api/v1/roles",
+        "path": "/api/v1/roles",
+        "guard": "API",
+        "method": "DELETE"
+    },
+    {
+        "name": "List Roles",
+        "url": "/api/v1/roles/list",
+        "path": "/api/v1/roles/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Role Detail",
+        "url": "/api/v1/roles/detail",
+        "path": "/api/v1/roles/detail",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Assign Role Permissions",
+        "url": "/api/v1/roles/assign_permissions",
+        "path": "/api/v1/roles/assign_permissions",
+        "guard": "API",
+        "method": "PATCH"
+    },
+    {
+        "name": "List Permissions",
+        "url": "/api/v1/permissions/list",
+        "path": "/api/v1/permissions/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Permission Detail",
+        "url": "/api/v1/permissions/detail",
+        "path": "/api/v1/permissions/detail",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Create Contract",
+        "url": "/api/v1/contracts",
+        "path": "/api/v1/contracts",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Update Contract",
+        "url": "/api/v1/contracts",
+        "path": "/api/v1/contracts",
+        "guard": "API",
+        "method": "PATCH"
+    },
+    {
+        "name": "Delete Contract",
+        "url": "/api/v1/contracts",
+        "path": "/api/v1/contracts",
+        "guard": "API",
+        "method": "DELETE"
+    },
+    {
+        "name": "List Contracts",
+        "url": "/api/v1/contracts/list",
+        "path": "/api/v1/contracts/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Contract Detail",
+        "url": "/api/v1/contracts/detail",
+        "path": "/api/v1/contracts/detail",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Send Signature Request",
+        "url": "/api/v1/contracts/send_signature_request",
+        "path": "/api/v1/contracts/send_signature_request",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Execute Contract",
+        "url": "/api/v1/contracts/execute",
+        "path": "/api/v1/contracts/execute",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Cancel Contract",
+        "url": "/api/v1/contracts/cancel",
+        "path": "/api/v1/contracts/cancel",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Create Template",
+        "url": "/api/v1/templates",
+        "path": "/api/v1/templates",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Update Template",
+        "url": "/api/v1/templates",
+        "path": "/api/v1/templates",
+        "guard": "API",
+        "method": "PATCH"
+    },
+    {
+        "name": "Delete Template",
+        "url": "/api/v1/templates",
+        "path": "/api/v1/templates",
+        "guard": "API",
+        "method": "DELETE"
+    },
+    {
+        "name": "List Templates",
+        "url": "/api/v1/templates/list",
+        "path": "/api/v1/templates/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Template Detail",
+        "url": "/api/v1/templates/detail",
+        "path": "/api/v1/templates/detail",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Create Signer",
+        "url": "/api/v1/signers",
+        "path": "/api/v1/signers",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Update Signer",
+        "url": "/api/v1/signers",
+        "path": "/api/v1/signers",
+        "guard": "API",
+        "method": "PATCH"
+    },
+    {
+        "name": "Delete Signer",
+        "url": "/api/v1/signers",
+        "path": "/api/v1/signers",
+        "guard": "API",
+        "method": "DELETE"
+    },
+    {
+        "name": "List Signers",
+        "url": "/api/v1/signers/list",
+        "path": "/api/v1/signers/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Capture Signature",
+        "url": "/api/v1/signatures/capture",
+        "path": "/api/v1/signatures/capture",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "List Signatures",
+        "url": "/api/v1/signatures/list",
+        "path": "/api/v1/signatures/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Signature Detail",
+        "url": "/api/v1/signatures/detail",
+        "path": "/api/v1/signatures/detail",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Create Verification",
+        "url": "/api/v1/verifications",
+        "path": "/api/v1/verifications",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Verify Code",
+        "url": "/api/v1/verifications/verify",
+        "path": "/api/v1/verifications/verify",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "List Verifications",
+        "url": "/api/v1/verifications/list",
+        "path": "/api/v1/verifications/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Verification Detail",
+        "url": "/api/v1/verifications/detail",
+        "path": "/api/v1/verifications/detail",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Create Storage",
+        "url": "/api/v1/storages",
+        "path": "/api/v1/storages",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Update Storage",
+        "url": "/api/v1/storages",
+        "path": "/api/v1/storages",
+        "guard": "API",
+        "method": "PATCH"
+    },
+    {
+        "name": "List Storages",
+        "url": "/api/v1/storages/list",
+        "path": "/api/v1/storages/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Storage Detail",
+        "url": "/api/v1/storages/detail",
+        "path": "/api/v1/storages/detail",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Create Compliance",
+        "url": "/api/v1/compliances",
+        "path": "/api/v1/compliances",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Review Compliance",
+        "url": "/api/v1/compliances",
+        "path": "/api/v1/compliances",
+        "guard": "API",
+        "method": "PATCH"
+    },
+    {
+        "name": "List Compliances",
+        "url": "/api/v1/compliances/list",
+        "path": "/api/v1/compliances/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Compliance Detail",
+        "url": "/api/v1/compliances/detail",
+        "path": "/api/v1/compliances/detail",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Issue Certificate",
+        "url": "/api/v1/certificates",
+        "path": "/api/v1/certificates",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Update Certificate",
+        "url": "/api/v1/certificates",
+        "path": "/api/v1/certificates",
+        "guard": "API",
+        "method": "PATCH"
+    },
+    {
+        "name": "List Certificates",
+        "url": "/api/v1/certificates/list",
+        "path": "/api/v1/certificates/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Certificate Detail",
+        "url": "/api/v1/certificates/detail",
+        "path": "/api/v1/certificates/detail",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "List Audit Logs",
+        "url": "/api/v1/audit_logs/list",
+        "path": "/api/v1/audit_logs/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Audit Log Detail",
+        "url": "/api/v1/audit_logs/detail",
+        "path": "/api/v1/audit_logs/detail",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "List Login Logs",
+        "url": "/api/v1/login_logs/list",
+        "path": "/api/v1/login_logs/list",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Dashboard Summary",
+        "url": "/api/v1/dashboard/summary",
+        "path": "/api/v1/dashboard/summary",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Contract Report",
+        "url": "/api/v1/reports/contracts",
+        "path": "/api/v1/reports/contracts",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Signature Report",
+        "url": "/api/v1/reports/signatures",
+        "path": "/api/v1/reports/signatures",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Signer Report",
+        "url": "/api/v1/reports/signers",
+        "path": "/api/v1/reports/signers",
+        "guard": "API",
+        "method": "POST"
+    },
+    {
+        "name": "Audit Log Report",
+        "url": "/api/v1/reports/audit_logs",
+        "path": "/api/v1/reports/audit_logs",
+        "guard": "API",
+        "method": "POST"
+    }
+]

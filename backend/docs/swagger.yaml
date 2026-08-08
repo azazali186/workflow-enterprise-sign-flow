@@ -1,0 +1,2071 @@
+definitions:
+  auditlogs.DetailRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  auth.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  certificates.CreateRequest:
+    properties:
+      contract_id:
+        type: string
+      data:
+        type: string
+      issuer:
+        type: string
+      not_after:
+        type: string
+      not_before:
+        type: string
+      serial_number:
+        type: string
+      subject:
+        type: string
+    type: object
+  certificates.DetailRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  certificates.PatchRequest:
+    properties:
+      id:
+        type: string
+      status:
+        type: string
+    type: object
+  compliances.CreateRequest:
+    type: object
+  compliances.DetailRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  compliances.PatchRequest:
+    type: object
+  contracts.ByIDRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  contracts.CreateRequest:
+    type: object
+  contracts.PatchRequest:
+    type: object
+  dashboard.SummaryRequest:
+    properties:
+      date_from:
+        type: string
+      date_to:
+        type: string
+    type: object
+  pagination.Query:
+    properties:
+      cursor:
+        type: string
+      date_field:
+        description: whitelisted via Options.DateFields
+        type: string
+      date_from:
+        type: string
+      date_to:
+        type: string
+      filters:
+        additionalProperties: {}
+        type: object
+      limit:
+        type: integer
+      search:
+        type: string
+      sort:
+        description: '"field" or "field:asc|desc" or "-field"'
+        type: string
+    type: object
+  permissions.DetailRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  response.Body:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+  roles.AssignPermissionsRequest:
+    properties:
+      id:
+        type: string
+      permission_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  roles.ByIDRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  roles.CreateRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      slug:
+        type: string
+    type: object
+  roles.PatchRequest:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  signatures.CaptureRequest:
+    properties:
+      contract_id:
+        type: string
+      data:
+        type: string
+      signature_type:
+        type: string
+      signer_id:
+        type: string
+      verification_id:
+        type: string
+    type: object
+  signatures.DetailRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  signers.ByIDRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  signers.CreateRequest:
+    properties:
+      contract_id:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      order:
+        type: integer
+      phone:
+        type: string
+      role:
+        type: string
+    type: object
+  signers.PatchRequest:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+    type: object
+  storages.CreateRequest:
+    properties:
+      bucket:
+        type: string
+      checksum:
+        type: string
+      content_type:
+        type: string
+      entity_id:
+        type: string
+      entity_type:
+        type: string
+      object_key:
+        type: string
+      size_bytes:
+        type: integer
+    type: object
+  storages.DetailRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  storages.PatchRequest:
+    properties:
+      checksum:
+        type: string
+      id:
+        type: string
+      size_bytes:
+        type: integer
+      status:
+        type: string
+    type: object
+  templates.ByIDRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  templates.CreateRequest:
+    properties:
+      content:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+      slug:
+        type: string
+    type: object
+  templates.PatchRequest:
+    properties:
+      content:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+    type: object
+  users.AssignRolesRequest:
+    properties:
+      id:
+        type: string
+      role_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  users.ByIDRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  users.CreateRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+      role_ids:
+        items:
+          type: string
+        type: array
+      status:
+        type: string
+    type: object
+  users.PatchRequest:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      status:
+        type: string
+    type: object
+  verifications.CreateRequest:
+    properties:
+      method:
+        type: string
+      signature_id:
+        type: string
+    type: object
+  verifications.DetailRequest:
+    properties:
+      id:
+        type: string
+    type: object
+  verifications.VerifyRequest:
+    properties:
+      code:
+        type: string
+      verification_id:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Digital signature and contract management platform. All data is
+  title: AeroXe SignFlow API
+  version: "1.0"
+paths:
+  /api/v1/audit_logs/detail:
+    post:
+      consumes:
+      - application/json
+      description: Returns one audit log entry by id in the body.
+      parameters:
+      - description: Audit log id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auditlogs.DetailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get an audit log entry
+      tags:
+      - audit_logs
+  /api/v1/audit_logs/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated audit trail with filters, search, sorting, date-range
+        and an action summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List audit logs
+      tags:
+      - audit_logs
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns a bearer token (JWT). Sessions
+        are stored server-side for single sign-out.
+      parameters:
+      - description: Credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Login with credentials
+      tags:
+      - auth
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Revokes the current token server-side.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Logout and invalidate the session
+      tags:
+      - auth
+  /api/v1/auth/me:
+    post:
+      consumes:
+      - application/json
+      description: Returns the authenticated user with roles.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get the current user
+      tags:
+      - auth
+  /api/v1/certificates:
+    patch:
+      consumes:
+      - application/json
+      description: Updates certificate status (e.g. revoke) by id in the body.
+      parameters:
+      - description: Updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/certificates.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Update a certificate
+      tags:
+      - certificates
+    post:
+      consumes:
+      - application/json
+      description: Issues a completion certificate for an executed contract. Payload
+        is encrypted at rest.
+      parameters:
+      - description: Certificate payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/certificates.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Issue a certificate
+      tags:
+      - certificates
+  /api/v1/certificates/detail:
+    post:
+      consumes:
+      - application/json
+      description: Returns one certificate by id in the body.
+      parameters:
+      - description: Certificate id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/certificates.DetailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get a certificate
+      tags:
+      - certificates
+  /api/v1/certificates/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated list with filters, search, sorting, date-range
+        and a status summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List certificates
+      tags:
+      - certificates
+  /api/v1/compliances:
+    patch:
+      consumes:
+      - application/json
+      description: Reviews a check by id; sets status, reviewer and reviewed_at.
+      parameters:
+      - description: Review
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/compliances.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Review a compliance check
+      tags:
+      - compliances
+    post:
+      consumes:
+      - application/json
+      description: Creates a compliance check (gdpr, esign, retention) for a contract.
+      parameters:
+      - description: Compliance check
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/compliances.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Open a compliance check
+      tags:
+      - compliances
+  /api/v1/compliances/detail:
+    post:
+      consumes:
+      - application/json
+      description: Returns one compliance check by id in the body.
+      parameters:
+      - description: Compliance id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/compliances.DetailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get a compliance check
+      tags:
+      - compliances
+  /api/v1/compliances/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated list with filters, sorting, date-range and a status
+        summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List compliance checks
+      tags:
+      - compliances
+  /api/v1/contracts:
+    delete:
+      consumes:
+      - application/json
+      description: Soft-deletes a contract by id in the body.
+      parameters:
+      - description: Contract id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/contracts.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Delete a contract
+      tags:
+      - contracts
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a contract by id in the body.
+      parameters:
+      - description: Updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/contracts.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Update a contract
+      tags:
+      - contracts
+    post:
+      consumes:
+      - application/json
+      description: Creates a contract from a template or free-form payload.
+      parameters:
+      - description: Contract payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/contracts.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Create a contract
+      tags:
+      - contracts
+  /api/v1/contracts/cancel:
+    post:
+      consumes:
+      - application/json
+      description: Cancels a contract by id in the body.
+      parameters:
+      - description: Contract id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/contracts.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Cancel a contract
+      tags:
+      - contracts
+  /api/v1/contracts/detail:
+    post:
+      consumes:
+      - application/json
+      description: Returns one contract by id in the body.
+      parameters:
+      - description: Contract id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/contracts.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get a contract
+      tags:
+      - contracts
+  /api/v1/contracts/execute:
+    post:
+      consumes:
+      - application/json
+      description: Marks a fully signed contract as executed.
+      parameters:
+      - description: Contract id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/contracts.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Execute a contract
+      tags:
+      - contracts
+  /api/v1/contracts/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated list with filters, search, sorting, date-range
+        and a status summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List contracts
+      tags:
+      - contracts
+  /api/v1/contracts/send_signature_request:
+    post:
+      consumes:
+      - application/json
+      description: Sends signature requests to all pending signers of a contract and
+        publishes an event.
+      parameters:
+      - description: Contract id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/contracts.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Send a signature request
+      tags:
+      - contracts
+  /api/v1/dashboard/summary:
+    post:
+      consumes:
+      - application/json
+      description: 'Returns cross-entity counts: contracts, signatures, signers, templates,
+        active users and storage bytes, optionally windowed.'
+      parameters:
+      - description: Optional date window
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dashboard.SummaryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get the dashboard summary
+      tags:
+      - dashboard
+  /api/v1/login_logs/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated authentication attempt records with filters, search,
+        date-range and a success summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List login logs
+      tags:
+      - login_logs
+  /api/v1/permissions/detail:
+    post:
+      consumes:
+      - application/json
+      description: Returns one permission by id in the body.
+      parameters:
+      - description: Permission id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/permissions.DetailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get a permission
+      tags:
+      - permissions
+  /api/v1/permissions/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated catalog of permissions seeded from registered
+        routes.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List permissions
+      tags:
+      - permissions
+  /api/v1/reports/audit_logs:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated audit log report with filters, search, sorting,
+        date-range and a summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Audit log report
+      tags:
+      - reports
+  /api/v1/reports/contracts:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated contract report with filters, search, sorting,
+        date-range and a summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Contract report
+      tags:
+      - reports
+  /api/v1/reports/signatures:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated signature report with filters, search, sorting,
+        date-range and a summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Signature report
+      tags:
+      - reports
+  /api/v1/reports/signers:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated signer report with filters, search, sorting, date-range
+        and a summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Signer report
+      tags:
+      - reports
+  /api/v1/roles:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a role by id in the body. System roles are protected.
+      parameters:
+      - description: Role id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/roles.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Delete a role
+      tags:
+      - roles
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a role by id in the body. System roles are protected.
+      parameters:
+      - description: Updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/roles.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Update a role
+      tags:
+      - roles
+    post:
+      consumes:
+      - application/json
+      description: Creates a new RBAC role.
+      parameters:
+      - description: Role payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/roles.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Create a role
+      tags:
+      - roles
+  /api/v1/roles/assign_permissions:
+    patch:
+      consumes:
+      - application/json
+      description: Replaces the role's permission set. System roles are protected.
+      parameters:
+      - description: Permission assignment
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/roles.AssignPermissionsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Assign permissions to a role
+      tags:
+      - roles
+  /api/v1/roles/detail:
+    post:
+      consumes:
+      - application/json
+      description: Returns one role by id in the body, including its permissions.
+      parameters:
+      - description: Role id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/roles.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get a role
+      tags:
+      - roles
+  /api/v1/roles/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated list with filters, search, sorting, date-range
+        and a summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List roles
+      tags:
+      - roles
+  /api/v1/signatures/capture:
+    post:
+      consumes:
+      - application/json
+      description: Records a captured signature for a signer and publishes an event.
+      parameters:
+      - description: Signature capture
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/signatures.CaptureRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Capture a signature
+      tags:
+      - signatures
+  /api/v1/signatures/detail:
+    post:
+      consumes:
+      - application/json
+      description: Returns one signature by id in the body.
+      parameters:
+      - description: Signature id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/signatures.DetailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get a signature
+      tags:
+      - signatures
+  /api/v1/signatures/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated list with filters, search, sorting, date-range
+        and a summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List signatures
+      tags:
+      - signatures
+  /api/v1/signers:
+    delete:
+      consumes:
+      - application/json
+      description: Removes a signer by id in the body.
+      parameters:
+      - description: Signer id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/signers.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Remove a signer
+      tags:
+      - signers
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a signer by id in the body.
+      parameters:
+      - description: Updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/signers.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Update a signer
+      tags:
+      - signers
+    post:
+      consumes:
+      - application/json
+      description: Adds a signer with a role and signing order.
+      parameters:
+      - description: Signer payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/signers.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Add a signer to a contract
+      tags:
+      - signers
+  /api/v1/signers/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated list with filters, search, sorting, date-range
+        and a status summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List signers
+      tags:
+      - signers
+  /api/v1/storages:
+    patch:
+      consumes:
+      - application/json
+      description: Updates upload status and size/checksum by id in the body.
+      parameters:
+      - description: Updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/storages.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Update storage state
+      tags:
+      - storages
+    post:
+      consumes:
+      - application/json
+      description: Registers object storage metadata. Object keys are encrypted at
+        rest.
+      parameters:
+      - description: Storage metadata
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/storages.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Register a stored object
+      tags:
+      - storages
+  /api/v1/storages/detail:
+    post:
+      consumes:
+      - application/json
+      description: Returns one storage record by id in the body.
+      parameters:
+      - description: Storage id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/storages.DetailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get a storage record
+      tags:
+      - storages
+  /api/v1/storages/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated list with filters, search, sorting, date-range
+        and a size summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List stored objects
+      tags:
+      - storages
+  /api/v1/templates:
+    delete:
+      consumes:
+      - application/json
+      description: Soft-deletes a template by id in the body.
+      parameters:
+      - description: Template id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/templates.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Delete a template
+      tags:
+      - templates
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a template by id; content changes bump the version.
+      parameters:
+      - description: Updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/templates.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Update a template
+      tags:
+      - templates
+    post:
+      consumes:
+      - application/json
+      description: Creates a reusable contract template.
+      parameters:
+      - description: Template payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/templates.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Create a template
+      tags:
+      - templates
+  /api/v1/templates/detail:
+    post:
+      consumes:
+      - application/json
+      description: Returns one template by id in the body.
+      parameters:
+      - description: Template id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/templates.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get a template
+      tags:
+      - templates
+  /api/v1/templates/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated list with filters, search, sorting, date-range
+        and a summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List templates
+      tags:
+      - templates
+  /api/v1/users:
+    delete:
+      consumes:
+      - application/json
+      description: Soft-deletes a user by id in the body.
+      parameters:
+      - description: User id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/users.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Delete a user
+      tags:
+      - users
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a user by id in the body.
+      parameters:
+      - description: Updates
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/users.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Update a user
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account with optional roles.
+      parameters:
+      - description: User payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/users.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Create a user
+      tags:
+      - users
+  /api/v1/users/assign_roles:
+    patch:
+      consumes:
+      - application/json
+      description: Replaces the user's role set.
+      parameters:
+      - description: Role assignment
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/users.AssignRolesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Assign roles to a user
+      tags:
+      - users
+  /api/v1/users/detail:
+    post:
+      consumes:
+      - application/json
+      description: Returns one user by id in the body.
+      parameters:
+      - description: User id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/users.ByIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get a user
+      tags:
+      - users
+  /api/v1/users/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated list with filters, search, sorting, date-range
+        and a status summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - users
+  /api/v1/verifications:
+    post:
+      consumes:
+      - application/json
+      description: Starts an OTP verification for a signature. The code is never stored
+        or returned in plaintext.
+      parameters:
+      - description: Verification request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/verifications.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Start a verification
+      tags:
+      - verifications
+  /api/v1/verifications/detail:
+    post:
+      consumes:
+      - application/json
+      description: Returns one verification by id in the body.
+      parameters:
+      - description: Verification id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/verifications.DetailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get a verification
+      tags:
+      - verifications
+  /api/v1/verifications/list:
+    post:
+      consumes:
+      - application/json
+      description: Cursor-paginated list with filters, sorting, date-range and a status
+        summary.
+      parameters:
+      - description: Pagination query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/pagination.Query'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: List verifications
+      tags:
+      - verifications
+  /api/v1/verifications/verify:
+    post:
+      consumes:
+      - application/json
+      description: Submits the OTP code for a verification record.
+      parameters:
+      - description: OTP submission
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/verifications.VerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Verify an OTP code
+      tags:
+      - verifications
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
