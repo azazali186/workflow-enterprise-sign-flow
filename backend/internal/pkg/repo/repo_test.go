@@ -160,8 +160,8 @@ func TestListSummary(t *testing.T) {
 
 type PtrTimeWidget struct {
 	model.Base
-	Name    string     `gorm:"size:80" json:"name"`
-	SentAt  *time.Time `json:"sent_at"`
+	Name   string     `gorm:"size:80" json:"name"`
+	SentAt *time.Time `json:"sent_at"`
 }
 
 func TestListCursorOnPointerTimeColumn(t *testing.T) {

@@ -25,7 +25,12 @@ const (
 	StateProcessing = "processing"
 	StatePublished  = "published"
 	StateFailed     = "failed"
+	StateDead       = "dead" // retry cap exceeded: terminal, never redelivered
 )
+
+// defaultMaxRetries caps delivery attempts before an event is dead-lettered,
+// preventing unbounded retries (and table growth) when the broker is down.
+const defaultMaxRetries = 10
 
 // Event is an outbox row: an intent to publish a domain event.
 type Event struct {
@@ -74,6 +79,7 @@ type Relay struct {
 	metrics    *metrics.Collectors
 	poll       time.Duration
 	claimToken string // unique per process for multi-instance safe claiming
+	maxRetries int
 	stop       chan struct{}
 }
 
@@ -91,9 +97,13 @@ func NewRelay(db *gorm.DB, pub Publisher, subject func(ev *Event) string, met *m
 		metrics:    met,
 		poll:       poll,
 		claimToken: tok,
+		maxRetries: defaultMaxRetries,
 		stop:       make(chan struct{}),
 	}
 }
+
+// SetMaxRetries overrides the dead-letter cap (tests).
+func (r *Relay) SetMaxRetries(n int) { r.maxRetries = n }
 
 // Start launches the background relay loop.
 func (r *Relay) Start() {
@@ -126,11 +136,10 @@ func (r *Relay) claimStale(ctx context.Context) {
 	r.db.WithContext(ctx).Model(&Event{}).
 		Where("status = ? AND claimed_at < ?", StateProcessing, threshold).
 		Updates(map[string]any{"status": StatePending, "claim_token": "", "claimed_at": nil})
-}
-
-// claim atomically marks pending rows as owned by this relay instance using an
+} // claim atomically marks pending rows as owned by this relay instance using an
 // UPDATE ... WHERE id IN (SELECT ...) inside a transaction, so concurrent
-// replicas never claim the same events.
+// replicas never claim the same events. Failed events are re-claimed until
+// their retry cap is reached, then dead-lettered by dispatch.
 func (r *Relay) claim(ctx context.Context) ([]Event, error) {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		now := time.Now()
@@ -138,6 +147,7 @@ func (r *Relay) claim(ctx context.Context) ([]Event, error) {
 			Where("id IN (?)",
 				tx.Model(&Event{}).Select("id").
 					Where("status = ? AND available_at <= ?", StatePending, now).
+					Or("status = ? AND retry_count < ? AND available_at <= ?", StateFailed, r.maxRetries, now).
 					Order("created_at asc").Limit(50),
 			).
 			Updates(map[string]any{"status": StateProcessing, "claim_token": r.claimToken, "claimed_at": now}).Error
@@ -163,15 +173,19 @@ func (r *Relay) dispatch(limit time.Duration) {
 	for i := range events {
 		ev := &events[i]
 		if err := r.publishWithRetry(ctx, ev); err != nil {
-			r.db.Model(ev).Updates(map[string]any{
-				"status": StateFailed, "last_error": err.Error(), "retry_count": gorm.Expr("retry_count + 1"),
+			state := StateFailed
+			if ev.RetryCount+1 >= r.maxRetries {
+				state = StateDead // terminal: cap reached, stop retrying
+			}
+			r.db.WithContext(ctx).Model(ev).Updates(map[string]any{
+				"status": state, "last_error": err.Error(), "retry_count": gorm.Expr("retry_count + 1"),
 				"claim_token": "", "claimed_at": nil,
 			})
-			r.metrics.OutboxEvents.WithLabelValues(StateFailed).Inc()
+			r.metrics.OutboxEvents.WithLabelValues(state).Inc()
 			continue
 		}
 		now := time.Now()
-		r.db.Model(ev).Updates(map[string]any{
+		r.db.WithContext(ctx).Model(ev).Updates(map[string]any{
 			"status": StatePublished, "published_at": now, "last_error": "",
 			"claim_token": "", "claimed_at": nil,
 		})

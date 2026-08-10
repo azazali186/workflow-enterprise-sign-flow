@@ -25,11 +25,11 @@ import (
 
 // Signature statuses.
 const (
-	StatusPending   = "pending"
-	StatusCaptured  = "captured"
-	StatusVerified  = "verified"
-	StatusInvalid   = "invalid"
-	StatusDeclined  = "declined"
+	StatusPending  = "pending"
+	StatusCaptured = "captured"
+	StatusVerified = "verified"
+	StatusInvalid  = "invalid"
+	StatusDeclined = "declined"
 )
 
 // Signature is one captured signature.

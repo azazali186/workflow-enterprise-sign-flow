@@ -9,6 +9,7 @@ import (
 
 	"github.com/aeroxe/sign-flow/backend/internal/audit"
 	"github.com/aeroxe/sign-flow/backend/internal/cache"
+	"github.com/aeroxe/sign-flow/backend/internal/middleware"
 	"github.com/aeroxe/sign-flow/backend/internal/models"
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/errs"
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/pagination"
@@ -27,6 +28,7 @@ type Service interface {
 
 type service struct {
 	db    *gorm.DB
+	cache cache.Cache
 	repo  *repo.Repo[models.Role]
 	audit *audit.Service
 }
@@ -43,7 +45,7 @@ func NewService(db *gorm.DB, c cache.Cache, a *audit.Service) Service {
 			Preloads:   []string{"Permissions"},
 			Summary: func(tx *gorm.DB) (any, error) {
 				var out struct {
-					Total int64 `json:"total_roles"`
+					Total  int64 `json:"total_roles"`
 					System int64 `json:"system_roles"`
 				}
 				tx.Model(&models.Role{}).Count(&out.Total)
@@ -52,6 +54,7 @@ func NewService(db *gorm.DB, c cache.Cache, a *audit.Service) Service {
 			},
 		}),
 		audit: a,
+		cache: c,
 	}
 }
 
@@ -76,8 +79,8 @@ type ByIDRequest struct {
 
 // AssignPermissionsRequest replaces a role's permissions.
 type AssignPermissionsRequest struct {
-	ID             string   `json:"id"`
-	PermissionIDs  []string `json:"permission_ids"`
+	ID            string   `json:"id"`
+	PermissionIDs []string `json:"permission_ids"`
 }
 
 func (s *service) Create(ctx context.Context, req CreateRequest) (*models.Role, error) {
@@ -128,6 +131,7 @@ func (s *service) Delete(ctx context.Context, req ByIDRequest) error {
 	if err := s.repo.Delete(ctx, req.ID); err != nil {
 		return err
 	}
+	_ = middleware.InvalidateAllRBAC(ctx, s.cache)
 	s.audit.Record(ctx, "role.deleted", "role", req.ID, nil, map[string]any{"deleted": true})
 	return nil
 }
@@ -157,6 +161,8 @@ func (s *service) AssignPermissions(ctx context.Context, req AssignPermissionsRe
 	if err := s.db.WithContext(ctx).Model(role).Association("Permissions").Replace(perms); err != nil {
 		return nil, err
 	}
+	// The affected user set is unknown, so purge every cached grant.
+	_ = middleware.InvalidateAllRBAC(ctx, s.cache)
 	s.audit.Record(ctx, "role.permissions_assigned", "role", req.ID, nil, map[string]any{"permission_ids": req.PermissionIDs})
 	return s.Detail(ctx, ByIDRequest{ID: req.ID})
 }

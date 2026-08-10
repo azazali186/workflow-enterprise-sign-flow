@@ -10,9 +10,9 @@ import (
 
 func TestParseSort(t *testing.T) {
 	tests := []struct {
-		in   string
+		in    string
 		field string
-		desc bool
+		desc  bool
 	}{
 		{"created_at", "created_at", true},
 		{"-created_at", "created_at", true},

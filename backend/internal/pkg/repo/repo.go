@@ -20,14 +20,14 @@ type Cache interface {
 
 // Options configures a repository instance.
 type Options[T any] struct {
-	Slug        string                 // cache slug, e.g. "contract"
-	Searchable  []string               // columns used for full-text-ish search
-	Filterable  map[string]string      // request filter key -> db column
-	Sortable    map[string]string      // request sort field -> db column
-	DateFields  []string               // whitelist for date_field
-	Preloads    []string               // associations to preload
+	Slug        string                         // cache slug, e.g. "contract"
+	Searchable  []string                       // columns used for full-text-ish search
+	Filterable  map[string]string              // request filter key -> db column
+	Sortable    map[string]string              // request sort field -> db column
+	DateFields  []string                       // whitelist for date_field
+	Preloads    []string                       // associations to preload
 	Summary     func(tx *gorm.DB) (any, error) // optional per-list summary data
-	DefaultSort string                 // e.g. "-created_at"
+	DefaultSort string                         // e.g. "-created_at"
 }
 
 // Repo is a generic CRUD repository over GORM.

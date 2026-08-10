@@ -17,8 +17,14 @@ type Config struct {
 	Env             string
 	LogLevel        string
 	MaxBodySize     int
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	IdleTimeout     time.Duration
 	ShutdownTimeout time.Duration
 	RateLimitPerMin int
+
+	// CORS (comma-separated allowed origins; empty = same-origin only)
+	CORSAllowedOrigins []string
 
 	// Database
 	DatabaseURL string
@@ -56,8 +62,12 @@ func Load() *Config {
 		Env:                getStr("ENV", "development"),
 		LogLevel:           getStr("LOG_LEVEL", "debug"),
 		MaxBodySize:        getInt("MAX_BODY_SIZE", 8<<20),
+		ReadTimeout:        getDur("READ_TIMEOUT", 30*time.Second),
+		WriteTimeout:       getDur("WRITE_TIMEOUT", 30*time.Second),
+		IdleTimeout:        getDur("IDLE_TIMEOUT", 120*time.Second),
 		ShutdownTimeout:    getDur("SHUTDOWN_TIMEOUT", 15*time.Second),
 		RateLimitPerMin:    getInt("RATE_LIMIT_PER_MIN", 120),
+		CORSAllowedOrigins: getList("CORS_ALLOWED_ORIGINS"),
 		DatabaseURL:        getStr("DATABASE_URL", "postgres://aeroxe:secret@localhost:5432/sign-flow?sslmode=disable"),
 		RedisURL:           getStr("REDIS_URL", "redis://localhost:6379"),
 		RedisTTL:           getDur("REDIS_TTL", 15*time.Minute),
@@ -95,4 +105,19 @@ func getDur(key string, def time.Duration) time.Duration {
 		}
 	}
 	return def
+}
+
+// getList parses a comma-separated env value into a trimmed slice.
+func getList(key string) []string {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return nil
+	}
+	var out []string
+	for _, part := range strings.Split(raw, ",") {
+		if v := strings.TrimSpace(part); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }

@@ -111,9 +111,9 @@ func (r *Repo[T]) buildFiltered(ctx context.Context, q pagination.Query) *gorm.D
 		case "like":
 			tx = tx.Where("LOWER("+col+") LIKE LOWER(?)", "%"+fmt.Sprintf("%v", val)+"%")
 		case "gte":
-			tx = tx.Where(r.compareExpr(col) + " >= ?", val)
+			tx = tx.Where(r.compareExpr(col)+" >= ?", val)
 		case "lte":
-			tx = tx.Where(r.compareExpr(col) + " <= ?", val)
+			tx = tx.Where(r.compareExpr(col)+" <= ?", val)
 		case "neq":
 			tx = tx.Where(col+" != ?", val)
 		default:

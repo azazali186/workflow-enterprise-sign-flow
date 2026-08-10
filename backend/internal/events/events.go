@@ -12,9 +12,9 @@ import (
 
 // Event is a domain event delivered on the bus.
 type Event struct {
-	EventType string          `json:"event_type"`
-	OccurredAt string         `json:"occurred_at"`
-	Data      json.RawMessage `json:"data"`
+	EventType  string          `json:"event_type"`
+	OccurredAt string          `json:"occurred_at"`
+	Data       json.RawMessage `json:"data"`
 }
 
 // Subscriber receives domain events.
@@ -38,13 +38,21 @@ func (b *Bus) Subscribe(s Subscriber) {
 	b.subs = append(b.subs, s)
 }
 
-// Publish broadcasts an event to all subscribers in a goroutine.
+// Publish broadcasts an event to all subscribers. Delivery runs in a single
+// goroutine per event (bounded), so a burst of events cannot spawn unbounded
+// goroutines. Subscribers must not block (the WS hub uses buffered channels).
 func (b *Bus) Publish(ev Event) {
 	b.mu.RLock()
-	defer b.mu.RUnlock()
-	for _, s := range b.subs {
-		go s.OnEvent(ev)
+	subs := append([]Subscriber(nil), b.subs...)
+	b.mu.RUnlock()
+	if len(subs) == 0 {
+		return
 	}
+	go func() {
+		for _, s := range subs {
+			s.OnEvent(ev)
+		}
+	}()
 }
 
 // NATSPublisher delivers outbox events to NATS JetStream.
@@ -53,16 +61,17 @@ type NATSPublisher struct {
 	prefix string
 }
 
-// NewNATSPublisher builds a publisher; nil client degrades to a no-op.
+// NewNATSPublisher builds a publisher. A nil client is allowed for tests and
+// degrades to an error so the outbox relay keeps events pending (no silent loss).
 func NewNATSPublisher(client *natsx.Client) *NATSPublisher {
 	return &NATSPublisher{client: client, prefix: natsx.SubjectPrefix}
 }
 
-// Publish sends a payload to subject <prefix>.<event-type>.
+// Publish sends a payload to subject <prefix>.<event-type>. Returns an error
+// (never nil) while NATS is unavailable so events are retried, not dropped.
 func (p *NATSPublisher) Publish(ctx context.Context, subject string, payload []byte) error {
-	if p.client == nil || p.client.JS == nil {
-		return nil // no NATS configured: relay simply marks events published
+	if p.client == nil {
+		return natsx.ErrNotConnected
 	}
-	_, err := p.client.JS.Publish(subject, payload)
-	return err
+	return p.client.Publish(subject, payload)
 }

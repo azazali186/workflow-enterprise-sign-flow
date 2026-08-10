@@ -6,6 +6,7 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"sync"
 	"time"
 
@@ -19,23 +20,51 @@ import (
 	"github.com/aeroxe/sign-flow/backend/internal/registry"
 )
 
-const writeWait = 10 * time.Second
+const (
+	writeWait      = 10 * time.Second
+	pongWait       = 60 * time.Second
+	pingPeriod     = 54 * time.Second // must be < pongWait
+	maxMessageSize = 4096
+	sendBuffer     = 32
+)
+
+// OriginPolicy controls which origins may open a WebSocket. Enforce=true
+// (production) rejects anything not in Allowed; "" origin (non-browser) passes.
+type OriginPolicy struct {
+	Allowed []string
+	Enforce bool
+}
+
+func (p OriginPolicy) check(origin string) bool {
+	if !p.Enforce || origin == "" {
+		return true
+	}
+	return slices.Contains(p.Allowed, origin)
+}
+
+// client is one live connection with a buffered, per-connection outbox so a
+// slow consumer never blocks broadcasts to other clients.
+type client struct {
+	conn *websocket.Conn
+	send chan []byte
+}
 
 // Hub tracks connections and fans events out.
 type Hub struct {
-	bus  *events.Bus
-	max  int
-	mu   sync.Mutex
-	conns map[*websocket.Conn]bool
+	bus     *events.Bus
+	max     int
+	origin  OriginPolicy
+	mu      sync.Mutex
+	clients map[*client]bool
+	closed  bool
 }
 
 // NewHub builds a hub subscribing to the event bus.
-func NewHub(bus *events.Bus, max int) *Hub {
-	h := &Hub{bus: bus, max: max, conns: map[*websocket.Conn]bool{}}
+func NewHub(bus *events.Bus, max int, origin OriginPolicy) *Hub {
 	if max <= 0 {
 		max = 1000
 	}
-	h.max = max
+	h := &Hub{bus: bus, max: max, origin: origin, clients: map[*client]bool{}}
 	bus.Subscribe(h)
 	return h
 }
@@ -44,10 +73,22 @@ func NewHub(bus *events.Bus, max int) *Hub {
 func (h *Hub) Count() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return len(h.conns)
+	return len(h.clients)
 }
 
-// OnEvent implements events.Subscriber.
+// Close stops accepting new connections and closes all live ones (graceful
+// shutdown). Connections are removed by their own readPump goroutines.
+func (h *Hub) Close() {
+	h.mu.Lock()
+	h.closed = true
+	for cl := range h.clients {
+		_ = cl.conn.Close()
+	}
+	h.mu.Unlock()
+}
+
+// OnEvent implements events.Subscriber: enqueue to every client's outbox,
+// dropping clients whose buffer is full (too slow to keep up).
 func (h *Hub) OnEvent(ev events.Event) {
 	payload, err := json.Marshal(ev)
 	if err != nil {
@@ -55,51 +96,95 @@ func (h *Hub) OnEvent(ev events.Event) {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for conn := range h.conns {
-		_ = conn.SetWriteDeadline(time.Now().Add(writeWait))
-		if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
-			_ = conn.Close()
-			delete(h.conns, conn)
+	for cl := range h.clients {
+		select {
+		case cl.send <- payload:
+		default: // slow consumer: drop and close
+			_ = cl.conn.Close()
+			delete(h.clients, cl)
+			logger.L().Warn("websocket client dropped (slow consumer)")
 		}
 	}
 }
 
-var upgrader = websocket.HertzUpgrader{
-	CheckOrigin: func(_ *app.RequestContext) bool { return true }, // CORS: allow any origin for realtime clients
-}
-
 // Serve upgrades the connection and registers it with the hub.
 func (h *Hub) Serve(_ context.Context, c *app.RequestContext) {
+	origin := string(c.Request.Header.Peek("Origin"))
+	if !h.origin.check(origin) {
+		c.AbortWithStatus(403)
+		return
+	}
+	upgrader := websocket.HertzUpgrader{
+		CheckOrigin: func(_ *app.RequestContext) bool { return h.origin.check(origin) },
+	}
 	h.mu.Lock()
-	if len(h.conns) >= h.max {
+	if h.closed || len(h.clients) >= h.max {
 		h.mu.Unlock()
 		c.AbortWithStatus(429)
 		return
 	}
 	h.mu.Unlock()
 	err := upgrader.Upgrade(c, func(conn *websocket.Conn) {
+		cl := &client{conn: conn, send: make(chan []byte, sendBuffer)}
 		h.mu.Lock()
-		h.conns[conn] = true
+		if !h.closed {
+			h.clients[cl] = true
+			logger.L().Info("websocket client connected", zap.Int("connections", h.Count()))
+			go h.writePump(cl)
+			h.readPump(cl)
+		} else {
+			_ = conn.Close() // hub already shut down: drop this upgrade
+		}
 		h.mu.Unlock()
-		logger.L().Info("websocket client connected", zap.Int("connections", h.Count()))
-		h.readPump(conn)
+		h.mu.Lock()
+		delete(h.clients, cl)
+		h.mu.Unlock()
 	})
 	if err != nil {
 		logger.L().Debug("websocket upgrade failed", zap.Error(err))
 	}
 }
 
-// readPump drains reads to detect disconnects.
-func (h *Hub) readPump(conn *websocket.Conn) {
+// writePump sends queued messages and periodic pings, enforcing deadlines.
+func (h *Hub) writePump(cl *client) {
+	ticker := time.NewTicker(pingPeriod)
 	defer func() {
-		h.mu.Lock()
-		delete(h.conns, conn)
-		h.mu.Unlock()
-		_ = conn.Close()
+		ticker.Stop()
+		_ = cl.conn.Close()
 	}()
-	conn.SetReadLimit(4096)
 	for {
-		if _, _, err := conn.ReadMessage(); err != nil {
+		select {
+		case msg, ok := <-cl.send:
+			_ = cl.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				_ = cl.conn.WriteMessage(websocket.CloseMessage, nil)
+				return
+			}
+			if err := cl.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				return
+			}
+		case <-ticker.C:
+			_ = cl.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := cl.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}
+}
+
+// readPump drains reads, detects dead peers via pong timeout, and limits size.
+func (h *Hub) readPump(cl *client) {
+	defer func() {
+		close(cl.send)
+		_ = cl.conn.Close()
+	}()
+	cl.conn.SetReadLimit(maxMessageSize)
+	_ = cl.conn.SetReadDeadline(time.Now().Add(pongWait))
+	cl.conn.SetPongHandler(func(string) error {
+		return cl.conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
+	for {
+		if _, _, err := cl.conn.ReadMessage(); err != nil {
 			return
 		}
 	}

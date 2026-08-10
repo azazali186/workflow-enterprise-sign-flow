@@ -20,7 +20,6 @@ import (
 const (
 	tokenKeyPrefix = "auth:token:"
 	userNamePrefix = "auth:user:"
-	rbacPrefix     = "rbac:user:"
 )
 
 // Auth validates the bearer token against the distributed session store
@@ -71,6 +70,12 @@ func Auth(mgr *jwt.Manager, cache cache.Cache, guards map[string]string) app.Han
 
 func body(code int, message string) map[string]any {
 	return map[string]any{"code": code, "message": message}
+}
+
+// RevokeSession invalidates a user's server-side session and grant keys so
+// every token issued before the call stops working immediately (delete/suspend).
+func RevokeSession(ctx context.Context, c cache.Cache, userID string) error {
+	return c.Del(ctx, tokenKeyPrefix+userID, userNamePrefix+userID, RBACPrefix+userID)
 }
 
 func md5Hex(s string) string {

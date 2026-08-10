@@ -10,15 +10,15 @@ import (
 
 // Collectors holds all custom metric vectors.
 type Collectors struct {
-	HTTPRequests     *prometheus.CounterVec
-	HTTPDuration     *prometheus.HistogramVec
-	OutboxEvents     *prometheus.CounterVec
-	RBACChecks       *prometheus.CounterVec
-	LockContention   *prometheus.CounterVec
+	HTTPRequests   *prometheus.CounterVec
+	HTTPDuration   *prometheus.HistogramVec
+	OutboxEvents   *prometheus.CounterVec
+	RBACChecks     *prometheus.CounterVec
+	LockContention *prometheus.CounterVec
 }
 
 var (
-	mOnce    sync.Once
+	mOnce     sync.Once
 	mInstance *Collectors
 )
 

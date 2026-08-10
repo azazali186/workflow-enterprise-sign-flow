@@ -20,6 +20,10 @@ const (
 	GuardAPI    = "API"
 )
 
+// RBACPrefix is the Redis key family holding per-user permission grants.
+// It is exported so services can purge grants after role/permission changes.
+const RBACPrefix = "rbac:user:"
+
 // GuardedRoute describes a registered route for RBAC enforcement.
 type GuardedRoute struct {
 	Key   string // "METHOD /path"
@@ -77,7 +81,7 @@ func (r *RBAC) Middleware() app.HandlerFunc {
 
 // check resolves the user's permission keys with caching.
 func (r *RBAC) check(ctx context.Context, userID, key string) (bool, error) {
-	cacheKey := rbacPrefix + userID
+	cacheKey := RBACPrefix + userID
 	if raw, err := r.cache.Get(ctx, cacheKey); err == nil && raw != "" {
 		return userAllows(raw, key), nil
 	}
@@ -109,4 +113,16 @@ func userAllows(raw, key string) bool {
 		}
 	}
 	return false
+}
+
+// InvalidateUserRBAC drops the cached grants of one user (e.g. after their
+// roles change), so the next request re-reads them from the database.
+func InvalidateUserRBAC(ctx context.Context, c cache.Cache, userID string) error {
+	return c.Del(ctx, RBACPrefix+userID)
+}
+
+// InvalidateAllRBAC purges every cached user grant (e.g. after a role's
+// permissions change, since the affected user set is not known).
+func InvalidateAllRBAC(ctx context.Context, c cache.Cache) error {
+	return c.ScanAndDel(ctx, RBACPrefix+"*")
 }

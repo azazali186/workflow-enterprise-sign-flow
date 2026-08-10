@@ -10,6 +10,7 @@ import (
 
 	"github.com/aeroxe/sign-flow/backend/internal/audit"
 	"github.com/aeroxe/sign-flow/backend/internal/cache"
+	"github.com/aeroxe/sign-flow/backend/internal/middleware"
 	"github.com/aeroxe/sign-flow/backend/internal/models"
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/errs"
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/pagination"
@@ -28,6 +29,7 @@ type Service interface {
 
 type service struct {
 	db    *gorm.DB
+	cache cache.Cache
 	repo  *repo.Repo[models.User]
 	audit *audit.Service
 }
@@ -35,8 +37,8 @@ type service struct {
 // NewService wires the user repository with audit logging.
 func NewService(db *gorm.DB, c cache.Cache, a *audit.Service) Service {
 	return &service{
-		db:    db,
-		repo:  repo.New(db, c, repo.Options[models.User]{
+		db: db,
+		repo: repo.New(db, c, repo.Options[models.User]{
 			Slug:       "user",
 			Searchable: []string{"name", "email"},
 			Filterable: map[string]string{"status": "status"},
@@ -52,6 +54,7 @@ func NewService(db *gorm.DB, c cache.Cache, a *audit.Service) Service {
 			},
 		}),
 		audit: a,
+		cache: c,
 	}
 }
 
@@ -134,6 +137,10 @@ func (s *service) Patch(ctx context.Context, req PatchRequest) (*models.User, er
 	}
 	if req.Status != nil {
 		updates["status"] = *req.Status
+		if *req.Status != models.UserActive {
+			// Suspended/deactivated users lose access immediately.
+			_ = middleware.RevokeSession(ctx, s.cache, req.ID)
+		}
 	}
 	after, err := s.repo.Patch(ctx, req.ID, updates)
 	if err != nil {
@@ -149,6 +156,8 @@ func (s *service) Delete(ctx context.Context, req ByIDRequest) error {
 	if err := s.repo.Delete(ctx, req.ID); err != nil {
 		return err
 	}
+	// A deleted user must lose access immediately: drop session and grants.
+	_ = middleware.RevokeSession(ctx, s.cache, req.ID)
 	s.audit.Record(ctx, "user.deleted", "user", req.ID, nil, map[string]any{"deleted": true})
 	return nil
 }
@@ -175,6 +184,8 @@ func (s *service) AssignRoles(ctx context.Context, req AssignRolesRequest) (*mod
 	if err := s.db.WithContext(ctx).Model(user).Association("Roles").Replace(roles); err != nil {
 		return nil, err
 	}
+	// Drop the user's cached grants so the new roles take effect immediately.
+	_ = middleware.InvalidateUserRBAC(ctx, s.cache, req.ID)
 	s.audit.Record(ctx, "user.roles_assigned", "user", req.ID, nil, map[string]any{"role_ids": req.RoleIDs})
 	return s.Detail(ctx, ByIDRequest{ID: req.ID})
 }

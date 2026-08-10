@@ -20,10 +20,10 @@ import (
 
 // Handler exposes the report HTTP routes.
 type Handler struct {
-	contracts contracts.Service
+	contracts  contracts.Service
 	signatures signatures.Service
-	auditlogs auditlogs.Service
-	signers   signers.Service
+	auditlogs  auditlogs.Service
+	signers    signers.Service
 }
 
 // NewHandler wires the report handler with entity services.

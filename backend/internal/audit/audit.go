@@ -17,17 +17,17 @@ import (
 // Log is an audit log row capturing a state change.
 type Log struct {
 	model.Base
-	Action       string          `gorm:"size:60;index" json:"action"`
-	EntityType   string          `gorm:"size:60;index" json:"entity_type"`
-	EntityID     string          `gorm:"size:60;index" json:"entity_id"`
-	ActorUserID  string          `gorm:"size:60;index" json:"actor_user_id"`
-	ActorName    string          `gorm:"size:120" json:"actor_name"`
-	BeforeData   json.RawMessage `gorm:"type:jsonb" json:"before_data,omitempty"`
-	AfterData    json.RawMessage `gorm:"type:jsonb" json:"after_data,omitempty"`
+	Action        string          `gorm:"size:60;index" json:"action"`
+	EntityType    string          `gorm:"size:60;index" json:"entity_type"`
+	EntityID      string          `gorm:"size:60;index" json:"entity_id"`
+	ActorUserID   string          `gorm:"size:60;index" json:"actor_user_id"`
+	ActorName     string          `gorm:"size:120" json:"actor_name"`
+	BeforeData    json.RawMessage `gorm:"type:jsonb" json:"before_data,omitempty"`
+	AfterData     json.RawMessage `gorm:"type:jsonb" json:"after_data,omitempty"`
 	ChangedFields json.RawMessage `gorm:"type:jsonb" json:"changed_fields,omitempty"`
-	IP           string          `gorm:"size:64" json:"ip"`
-	UserAgent    string          `gorm:"size:255" json:"user_agent"`
-	RequestID    string          `gorm:"size:64;index" json:"request_id"`
+	IP            string          `gorm:"size:64" json:"ip"`
+	UserAgent     string          `gorm:"size:255" json:"user_agent"`
+	RequestID     string          `gorm:"size:64;index" json:"request_id"`
 }
 
 // LoginLog records authentication attempts (never passwords).

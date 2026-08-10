@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"path"
 	"strconv"
 	"sync"
 	"time"
@@ -22,6 +23,11 @@ type Cache interface {
 	Incr(ctx context.Context, key string, ttl time.Duration) (int64, error)
 	Lock(ctx context.Context, key string, val string, ttl time.Duration) (bool, error)
 	Unlock(ctx context.Context, key, val string) error
+	// ScanAndDel deletes every key matching a glob pattern (used to purge
+	// cache families such as the per-user RBAC grants on role changes).
+	ScanAndDel(ctx context.Context, pattern string) error
+	// Ping reports whether the backing store is reachable (readiness probes).
+	Ping(ctx context.Context) error
 }
 
 // Redis implements Cache backed by Redis (also used for distributed locks).
@@ -44,6 +50,11 @@ func NewRedis(url string) (*Redis, error) {
 
 // NewRedisClient wraps an existing client (used for tests).
 func NewRedisClient(client *redis.Client) *Redis { return &Redis{client: client} }
+
+// Ping verifies connectivity to the Redis server.
+func (r *Redis) Ping(ctx context.Context) error {
+	return r.client.Ping(ctx).Err()
+}
 
 func (r *Redis) Get(ctx context.Context, key string) (string, error) {
 	return r.client.Get(ctx, key).Result()
@@ -80,6 +91,31 @@ func (r *Redis) Set(ctx context.Context, key string, val any, ttl time.Duration)
 
 func (r *Redis) Del(ctx context.Context, keys ...string) error {
 	return r.client.Del(ctx, keys...).Err()
+}
+
+// ScanAndDel purges all keys matching pattern via SCAN + DEL, deleting in
+// batches so huge key families are not held in memory. SCAN is non-blocking
+// and safe to run against a live store.
+func (r *Redis) ScanAndDel(ctx context.Context, pattern string) error {
+	const batch = 1000
+	var keys []string
+	iter := r.client.Scan(ctx, 0, pattern, batch).Iterator()
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+		if len(keys) >= batch {
+			if err := r.client.Del(ctx, keys...).Err(); err != nil {
+				return err
+			}
+			keys = keys[:0]
+		}
+	}
+	if err := iter.Err(); err != nil {
+		return err
+	}
+	if len(keys) > 0 {
+		return r.client.Del(ctx, keys...).Err()
+	}
+	return nil
 }
 
 func (r *Redis) Incr(ctx context.Context, key string, ttl time.Duration) (int64, error) {
@@ -119,11 +155,14 @@ type item struct {
 // NewMemory builds an empty in-memory cache.
 func NewMemory() *Memory { return &Memory{store: map[string]item{}} }
 
+// Ping always succeeds for the in-memory store.
+func (m *Memory) Ping(ctx context.Context) error { return nil }
+
 func (m *Memory) Get(ctx context.Context, key string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	it, ok := m.store[key]
-	if !ok || time.Now().After(it.exp) {
+	if !ok || expired(it.exp) {
 		return "", errors.New("redis: nil")
 	}
 	return it.val, nil
@@ -133,17 +172,33 @@ func (m *Memory) GetWithTTL(ctx context.Context, key string) (string, time.Durat
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	it, ok := m.store[key]
-	if !ok || time.Now().After(it.exp) {
+	if !ok || expired(it.exp) {
 		return "", 0, errors.New("redis: nil")
 	}
-	return it.val, time.Until(it.exp), nil
+	ttl := time.Duration(0)
+	if !it.exp.IsZero() {
+		ttl = time.Until(it.exp)
+	}
+	return it.val, ttl, nil
 }
 
 func (m *Memory) Set(ctx context.Context, key string, val any, ttl time.Duration) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.store[key] = item{val: asStr(val), exp: time.Now().Add(ttl)}
+	// Mirror Redis semantics: ttl <= 0 persists indefinitely. GetWithTTL then
+	// reports 0, which callers only use to decide session renewal — session
+	// keys are always created with a positive TTL.
+	exp := time.Time{}
+	if ttl > 0 {
+		exp = time.Now().Add(ttl)
+	}
+	m.store[key] = item{val: asStr(val), exp: exp}
 	return nil
+}
+
+// expired reports whether an item has passed its expiry (zero means forever).
+func expired(exp time.Time) bool {
+	return !exp.IsZero() && time.Now().After(exp)
 }
 
 func (m *Memory) Del(ctx context.Context, keys ...string) error {
@@ -155,16 +210,34 @@ func (m *Memory) Del(ctx context.Context, keys ...string) error {
 	return nil
 }
 
+// ScanAndDel deletes every key matching a glob-style pattern. Note: path.Match
+// treats '*' as not crossing '/', unlike Redis glob; patterns used in practice
+// ("rbac:user:*") contain no slashes, so the two implementations agree.
+func (m *Memory) ScanAndDel(ctx context.Context, pattern string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for k := range m.store {
+		if ok, err := path.Match(pattern, k); err == nil && ok {
+			delete(m.store, k)
+		}
+	}
+	return nil
+}
+
 func (m *Memory) Incr(ctx context.Context, key string, ttl time.Duration) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	it, ok := m.store[key]
 	n := int64(0)
-	if ok && time.Now().Before(it.exp) {
+	if ok && !expired(it.exp) {
 		_ = json.Unmarshal([]byte(it.val), &n)
 	}
 	n++
-	m.store[key] = item{val: itoa(n), exp: time.Now().Add(ttl)}
+	exp := time.Time{}
+	if ttl > 0 {
+		exp = time.Now().Add(ttl)
+	}
+	m.store[key] = item{val: itoa(n), exp: exp}
 	return n, nil
 }
 
@@ -172,10 +245,14 @@ func (m *Memory) Lock(ctx context.Context, key, val string, ttl time.Duration) (
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	it, ok := m.store[key]
-	if ok && time.Now().Before(it.exp) {
+	if ok && !expired(it.exp) {
 		return false, nil
 	}
-	m.store[key] = item{val: val, exp: time.Now().Add(ttl)}
+	exp := time.Time{}
+	if ttl > 0 {
+		exp = time.Now().Add(ttl)
+	}
+	m.store[key] = item{val: val, exp: exp}
 	return true, nil
 }
 

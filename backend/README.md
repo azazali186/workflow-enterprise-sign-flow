@@ -16,6 +16,15 @@ management platform. Built with **Hertz**, **GORM** (no raw SQL),
 - **RBAC:** permissions are seeded automatically from registered routes at
   startup; public routes (login, health, swagger, metrics, ws) are skipped.
 - **Audit:** before/after change tracking; no sensitive data is logged.
+- **Security headers + CORS:** hardened headers on every response;
+  `CORS_ALLOWED_ORIGINS` allow-list (empty = same-origin, `*` = dev only).
+- **Request IDs:** every request (public routes included) carries an
+  `X-Request-ID` echoed back and correlated through logs and audit entries.
+- **Readiness:** `POST /api/v1/health` pings Postgres and Redis and reports
+  `503` when a dependency is down.
+- **Resilient NATS:** the outbox relay never silently drops events — while
+  NATS is unreachable it keeps reconnecting in the background and events
+  stay pending until delivered.
 
 ## Quick Start
 
@@ -41,7 +50,7 @@ make run
 | `POST /api/v1/auth/me`    | Current user + roles          |
 | `/swagger`             | Interactive Swagger UI           |
 | `/metrics`             | Prometheus metrics               |
-| `POST /api/v1/health`  | Liveness check (public)          |
+| `POST /api/v1/health`  | Liveness + readiness check (public) |
 
 ## Commands
 
@@ -76,4 +85,13 @@ make test
 ## Documentation
 
 - `docs/ARCHITECTURE.md` — high-level architecture and design decisions
-- `docs/swagger.json` / `/swagger` — full OpenAPI spec of all 48 endpoints
+- `docs/swagger.json` / `/swagger` — full OpenAPI spec of all 60 API endpoints
+  (plus 5 public routes: login, health, swagger UI, metrics, WebSocket)
+
+## Development on Windows
+
+The project targets 64-bit builds (Hertz/sonic does not compile on 32-bit
+toolchains). The `Makefile` already forces `GOARCH=amd64`, so prefer
+`make run` / `make test`. If you invoke `go` directly, use
+`GOARCH=amd64 go run ./cmd/server` — the default 32-bit Go install will fail
+with a `sonic … overflows int` compile error.

@@ -53,9 +53,9 @@ type LoginRequest struct {
 
 // LoginResult is the token payload returned on success.
 type LoginResult struct {
-	AccessToken string      `json:"access_token"`
-	TokenType   string      `json:"token_type"`
-	ExpiresIn   int64       `json:"expires_in"`
+	AccessToken string       `json:"access_token"`
+	TokenType   string       `json:"token_type"`
+	ExpiresIn   int64        `json:"expires_in"`
 	User        *models.User `json:"user"`
 }
 

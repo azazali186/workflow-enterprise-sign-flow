@@ -37,11 +37,11 @@ type Service interface {
 }
 
 type service struct {
-	db     *gorm.DB
-	repo   *repo.Repo[Contract]
-	audit  *audit.Service
-	bus    *events.Bus
-	cache  cache.Cache
+	db    *gorm.DB
+	repo  *repo.Repo[Contract]
+	audit *audit.Service
+	bus   *events.Bus
+	cache cache.Cache
 }
 
 // NewService wires the contract repository, outbox and event bus.

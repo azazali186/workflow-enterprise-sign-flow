@@ -49,9 +49,12 @@ func New(cfg Config) *Breaker {
 // ErrOpen is returned when the circuit is open.
 var ErrOpen = errors.New("circuit breaker open")
 
-// Execute runs fn guarded by the breaker.
+// Execute runs fn guarded by the breaker. A rejected call returns ErrOpen.
 func (b *Breaker) Execute(fn func() error) error {
 	_, err := b.cb.Execute(func() (interface{}, error) { return nil, fn() })
+	if errors.Is(err, gobreaker.ErrOpenState) {
+		return ErrOpen
+	}
 	return err
 }
 

@@ -9,7 +9,7 @@ import (
 
 // User statuses.
 const (
-	UserActive   = "active"
+	UserActive    = "active"
 	UserSuspended = "suspended"
 )
 

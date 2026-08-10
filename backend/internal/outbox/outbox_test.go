@@ -94,6 +94,35 @@ func TestFailedPublishRetriesAndMarksFailed(t *testing.T) {
 	}, 5*time.Second, 100*time.Millisecond)
 }
 
+func TestDeadLetterAfterMaxRetries(t *testing.T) {
+	db := setupDB(t)
+	pub := &fakePublisher{fail: true}
+	relay := NewRelay(db, pub, func(ev *Event) string { return "signflow.events." + ev.EventType }, metrics.New(), 30*time.Millisecond)
+	relay.SetMaxRetries(3)
+	relay.Start()
+	defer relay.Stop()
+
+	ctx := context.Background()
+	require.NoError(t, db.Transaction(func(tx *gorm.DB) error {
+		return Enqueue(ctx, tx, "contract", "dead", "signed_update", map[string]any{"x": 1})
+	}))
+
+	// Once the retry cap is hit the event is dead-lettered and never retried again.
+	require.Eventually(t, func() bool {
+		var ev Event
+		if err := db.First(&ev).Error; err != nil {
+			return false
+		}
+		return ev.Status == StateDead && ev.RetryCount >= 3
+	}, 8*time.Second, 100*time.Millisecond)
+
+	// It must not be claimed again after reaching the terminal state.
+	time.Sleep(200 * time.Millisecond)
+	var ev Event
+	require.NoError(t, db.First(&ev).Error)
+	assert.Equal(t, StateDead, ev.Status)
+}
+
 // TestTwoRelaysDoNotDoublePublish enqueues N events and runs two relay
 // instances concurrently; each event must be published exactly once.
 func TestTwoRelaysDoNotDoublePublish(t *testing.T) {
