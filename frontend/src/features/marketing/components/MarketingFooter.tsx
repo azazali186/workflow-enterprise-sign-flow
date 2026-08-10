@@ -6,7 +6,6 @@ const columns = [
     title: 'Product',
     links: [
       { to: '/features', label: 'Features' },
-      { to: '/pricing', label: 'Pricing' },
       { to: '/security', label: 'Security' },
     ],
   },
@@ -67,7 +66,7 @@ export function MarketingFooter() {
 
         <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center">
           <p className="text-xs text-slate-400">
-            © {new Date().getFullYear()} AeroXe SignFlow. All rights reserved.
+            © 2026 AeroXe Enterprises Private Limited. All rights reserved.
           </p>
           <div className="flex items-center gap-5 text-xs text-slate-400">
             <Link to="/security" className="transition-colors hover:text-slate-700">

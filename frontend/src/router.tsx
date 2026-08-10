@@ -11,9 +11,6 @@ const LandingPage = lazy(() =>
 const FeaturesPage = lazy(() =>
   import('@/features/marketing/pages/FeaturesPage').then((m) => ({ default: m.FeaturesPage })),
 )
-const PricingPage = lazy(() =>
-  import('@/features/marketing/pages/PricingPage').then((m) => ({ default: m.PricingPage })),
-)
 const SecurityPage = lazy(() =>
   import('@/features/marketing/pages/SecurityPage').then((m) => ({ default: m.SecurityPage })),
 )
@@ -88,7 +85,6 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <LandingPage /> },
       { path: 'features', element: <FeaturesPage /> },
-      { path: 'pricing', element: <PricingPage /> },
       { path: 'security', element: <SecurityPage /> },
       { path: 'about', element: <AboutPage /> },
       { path: 'contact', element: <ContactPage /> },
