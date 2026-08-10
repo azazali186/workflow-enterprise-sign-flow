@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
@@ -33,16 +34,29 @@ type Service interface {
 }
 
 type service struct {
-	db    *gorm.DB
-	cache cache.Cache
-	jwt   *jwt.Manager
-	audit *audit.Service
-	ttl   time.Duration
+	db          *gorm.DB
+	cache       cache.Cache
+	jwt         *jwt.Manager
+	audit       *audit.Service
+	ttl         time.Duration
+	maxAttempts int
+	lockoutDur  time.Duration
 }
 
 // NewService builds the auth service.
 func NewService(db *gorm.DB, c cache.Cache, mgr *jwt.Manager, a *audit.Service, ttl time.Duration) Service {
-	return &service{db: db, cache: c, jwt: mgr, audit: a, ttl: ttl}
+	return NewServiceWithLockout(db, c, mgr, a, ttl, 5, 15*time.Minute)
+}
+
+// NewServiceWithLockout builds the auth service with brute-force protection.
+func NewServiceWithLockout(db *gorm.DB, c cache.Cache, mgr *jwt.Manager, a *audit.Service, ttl time.Duration, maxAttempts int, lockoutDur time.Duration) Service {
+	if maxAttempts <= 0 {
+		maxAttempts = 5
+	}
+	if lockoutDur <= 0 {
+		lockoutDur = 15 * time.Minute
+	}
+	return &service{db: db, cache: c, jwt: mgr, audit: a, ttl: ttl, maxAttempts: maxAttempts, lockoutDur: lockoutDur}
 }
 
 // LoginRequest carries credentials in the request body (no query params).
@@ -60,26 +74,36 @@ type LoginResult struct {
 }
 
 func (s *service) Login(ctx context.Context, req LoginRequest) (*LoginResult, error) {
-	if req.Email == "" || req.Password == "" {
-		s.audit.RecordLogin(ctx, req.Email, false, "missing credentials")
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if email == "" || req.Password == "" {
+		s.audit.RecordLogin(ctx, email, false, "missing credentials")
 		return nil, errs.ErrValidation
 	}
+	// Brute-force protection: reject early while the account is locked out.
+	if s.locked(ctx, email) {
+		s.audit.RecordLogin(ctx, email, false, "account locked")
+		return nil, errs.New(429, 42910, "too many failed attempts, try again later")
+	}
 	var user models.User
-	if err := s.db.WithContext(ctx).Preload("Roles").First(&user, "email = ?", req.Email).Error; err != nil {
-		s.audit.RecordLogin(ctx, req.Email, false, "unknown user")
+	if err := s.db.WithContext(ctx).Preload("Roles").First(&user, "email = ?", email).Error; err != nil {
+		s.audit.RecordLogin(ctx, email, false, "unknown user")
 		if err == gorm.ErrRecordNotFound {
+			s.recordFailure(ctx, email) // same counter as wrong password: no enumeration
 			return nil, errs.New(401, 40110, "invalid credentials")
 		}
 		return nil, err
 	}
 	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)) != nil {
-		s.audit.RecordLogin(ctx, req.Email, false, "invalid password")
+		s.audit.RecordLogin(ctx, email, false, "invalid password")
+		s.recordFailure(ctx, email)
 		return nil, errs.New(401, 40110, "invalid credentials")
 	}
 	if user.Status != models.UserActive {
-		s.audit.RecordLogin(ctx, req.Email, false, "account suspended")
+		s.audit.RecordLogin(ctx, email, false, "account suspended")
 		return nil, errs.New(403, 40310, "account is suspended")
 	}
+	// Success: clear any failed-attempt counters.
+	_ = s.cache.Del(ctx, lockKey(email), failKey(email))
 	token, ttl, err := s.jwt.Issue(user.ID)
 	if err != nil {
 		return nil, err
@@ -91,11 +115,43 @@ func (s *service) Login(ctx context.Context, req LoginRequest) (*LoginResult, er
 	_ = s.cache.Set(ctx, "auth:user:"+user.ID, user.Name, ttl)
 	now := time.Now()
 	_ = s.db.WithContext(ctx).Model(&user).Update("last_login_at", now)
-	s.audit.RecordLogin(ctx, req.Email, true, "login success")
+	s.audit.RecordLogin(ctx, email, true, "login success")
 	logger.L().Info("user logged in", zap.String("user_id", user.ID))
 	return &LoginResult{
 		AccessToken: token, TokenType: "bearer", ExpiresIn: int64(ttl.Seconds()), User: &user,
 	}, nil
+}
+
+const (
+	lockKeyPrefix = "auth:lock:"
+	failKeyPrefix = "auth:fail:"
+)
+
+func lockKey(email string) string { return lockKeyPrefix + email }
+func failKey(email string) string { return failKeyPrefix + email }
+
+// locked reports whether the account is in a lockout window.
+func (s *service) locked(ctx context.Context, email string) bool {
+	_, ttl, err := s.cache.GetWithTTL(ctx, lockKey(email))
+	return err == nil && ttl > 0
+}
+
+// failWindow is how long the failure counter survives. It is deliberately
+// longer than the lockout so an attacker cannot wait out one window, repeat
+// maxAttempts-1 failures, and evade the cap indefinitely. The counter is
+// cleared on a successful login.
+const failWindow = 24 * time.Hour
+
+// recordFailure increments the failed-attempt counter and arms the lockout
+// once the threshold is crossed.
+func (s *service) recordFailure(ctx context.Context, email string) {
+	n, err := s.cache.Incr(ctx, failKey(email), failWindow)
+	if err != nil {
+		return
+	}
+	if n >= int64(s.maxAttempts) {
+		_ = s.cache.Set(ctx, lockKey(email), "1", s.lockoutDur)
+	}
 }
 
 func (s *service) Logout(ctx context.Context) error {

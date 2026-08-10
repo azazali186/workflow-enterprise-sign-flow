@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -57,6 +58,67 @@ func TestRecordPersistsBeforeAfter(t *testing.T) {
 	var after map[string]any
 	require.NoError(t, json.Unmarshal(log.AfterData, &after))
 	assert.Equal(t, "signed", after["status"])
+}
+
+func TestPurgeOlderThanPhysicallyDeletes(t *testing.T) {
+	db := newDB(t)
+	svc := New(db)
+	ctx := context.Background()
+	require.NoError(t, svc.Record(ctx, "a.b", "t", "1", nil, map[string]any{"x": 1}))
+	require.NoError(t, svc.RecordLogin(ctx, "old@example.com", false, "no"))
+
+	// Backdate both rows beyond the retention cutoff.
+	old := time.Now().Add(-100 * 24 * time.Hour)
+	require.NoError(t, db.Model(&Log{}).Where("1 = 1").Update("created_at", old).Error)
+	require.NoError(t, db.Model(&LoginLog{}).Where("1 = 1").Update("login_at", old).Error)
+
+	require.NoError(t, svc.PurgeOlderThan(ctx, time.Now().Add(-90*24*time.Hour)))
+
+	// Unscoped count: rows must be GONE from disk, not merely soft-deleted.
+	var n int64
+	db.Unscoped().Model(&Log{}).Count(&n)
+	assert.Zero(t, n, "audit log must be physically deleted")
+	db.Unscoped().Model(&LoginLog{}).Count(&n)
+	assert.Zero(t, n, "login log must be physically deleted")
+}
+
+func TestPurgeZeroRetentionKeepsEverything(t *testing.T) {
+	db := newDB(t)
+	svc := New(db)
+	ctx := context.Background()
+	require.NoError(t, svc.Record(ctx, "a.b", "t", "1", nil, map[string]any{"x": 1}))
+	require.NoError(t, svc.RecordLogin(ctx, "old@example.com", false, "no"))
+
+	// Backdate rows so any purge would remove them.
+	old := time.Now().Add(-200 * 24 * time.Hour)
+	require.NoError(t, db.Model(&Log{}).Where("1 = 1").Update("created_at", old).Error)
+	require.NoError(t, db.Model(&LoginLog{}).Where("1 = 1").Update("login_at", old).Error)
+
+	// A zero/negative retention must never delete anything.
+	svc.StartCleaner(ctx, time.Nanosecond, 0)
+	time.Sleep(50 * time.Millisecond)
+
+	var n int64
+	db.Unscoped().Model(&Log{}).Count(&n)
+	assert.Equal(t, int64(1), n, "zero retention must keep audit rows")
+	db.Unscoped().Model(&LoginLog{}).Count(&n)
+	assert.Equal(t, int64(1), n, "zero retention must keep login rows")
+}
+
+func TestPurgeKeepsFreshRows(t *testing.T) {
+	db := newDB(t)
+	svc := New(db)
+	ctx := context.Background()
+	require.NoError(t, svc.Record(ctx, "a.b", "t", "1", nil, map[string]any{"x": 1}))
+	require.NoError(t, svc.RecordLogin(ctx, "new@example.com", true, "ok"))
+
+	require.NoError(t, svc.PurgeOlderThan(ctx, time.Now().Add(-90*24*time.Hour)))
+
+	var n int64
+	db.Unscoped().Model(&Log{}).Count(&n)
+	assert.Equal(t, int64(1), n)
+	db.Unscoped().Model(&LoginLog{}).Count(&n)
+	assert.Equal(t, int64(1), n)
 }
 
 func TestRecordLoginSuccessAndFailure(t *testing.T) {

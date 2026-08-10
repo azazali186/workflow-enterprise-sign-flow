@@ -124,6 +124,12 @@ func main() {
 
 	met := metrics.New()
 	auditSvc := audit.New(db)
+	// Audit and login logs are purged past their retention window so the
+	// tables cannot grow without bound. Runs in the background, panic-safe.
+	auditCtx, auditCancel := context.WithCancel(context.Background())
+	defer auditCancel()
+	auditSvc.StartCleaner(auditCtx, time.Duration(cfg.AuditCleanupMinutes)*time.Minute,
+		time.Duration(cfg.AuditRetentionDays)*24*time.Hour)
 	bus := events.NewBus()
 	relay := outbox.NewRelay(db, events.NewNATSPublisher(natsClient), subjectFor, met, cfg.OutboxPollInterval)
 	relay.Start()
@@ -147,7 +153,8 @@ func main() {
 	guards := map[string]string{}
 	h.Use(middleware.RequestID(), middleware.Recovery())
 	h.Use(middleware.Security(cfg.CORSAllowedOrigins, cfg.Env == "production"))
-	h.Use(middleware.RequestLog(met), middleware.RateLimit(cacheClient, cfg.RateLimitPerMin))
+	routeLimits := map[string]int{"/api/v1/auth/login": cfg.LoginRateLimitMin}
+	h.Use(middleware.RequestLog(met), middleware.RateLimit(cacheClient, cfg.RateLimitPerMin, routeLimits))
 	h.Use(middleware.Auth(jwtMgr, cacheClient, guards), middleware.NewRBAC(db, cacheClient, guards, met).Middleware())
 
 	reg := registry.New()
@@ -157,7 +164,8 @@ func main() {
 	ws.Register(reg, h.Group("/"), wsHub)
 
 	// Build handlers.
-	authH := auth.NewHandler(auth.NewService(db, cacheClient, jwtMgr, auditSvc, cfg.JWTExpiry))
+	authH := auth.NewHandler(auth.NewServiceWithLockout(db, cacheClient, jwtMgr, auditSvc, cfg.JWTExpiry,
+		cfg.LoginMaxAttempts, time.Duration(cfg.LoginLockoutMinutes)*time.Minute))
 	userSvc := users.NewService(db, cacheClient, auditSvc)
 	usersH := users.NewHandler(userSvc)
 	roleSvc := roles.NewService(db, cacheClient, auditSvc)
@@ -198,11 +206,16 @@ func main() {
 	reportsH.Register(reg, r)
 
 	// Public infra endpoints (also registered as PUBLIC so auth/RBAC skip them).
-	h.GET("/swagger/*any", httpx.Adapt(httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json"))))
-	h.GET("/metrics", httpx.Adapt(promhttp.Handler()))
+	// Swagger and metrics can be disabled in production to shrink the surface.
+	if cfg.SwaggerEnabled {
+		h.GET("/swagger/*any", httpx.Adapt(httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json"))))
+		reg.Register("GET", "/swagger/*any", "Swagger Documentation", "PUBLIC")
+	}
+	if cfg.MetricsEnabled {
+		h.GET("/metrics", httpx.Adapt(promhttp.Handler()))
+		reg.Register("GET", "/metrics", "Prometheus Metrics", "PUBLIC")
+	}
 	h.POST("/api/v1/health", healthHandler(db, cacheClient))
-	reg.Register("GET", "/swagger/*any", "Swagger Documentation", "PUBLIC")
-	reg.Register("GET", "/metrics", "Prometheus Metrics", "PUBLIC")
 	reg.Register("POST", "/api/v1/health", "Health Check", "PUBLIC")
 
 	// Populate the guard table now that every route is registered, then seed
@@ -227,6 +240,8 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	logger.L().Info("shutting down")
+	wsHub.Close()
+	natsClient.Close()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 	_ = h.Shutdown(shutdownCtx)

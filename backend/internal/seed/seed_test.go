@@ -30,7 +30,7 @@ func newSeedDB(t *testing.T) *gorm.DB {
 
 func TestRunSeedsAdminAndRole(t *testing.T) {
 	db := newSeedDB(t)
-	opts := Options{AdminEmail: "admin@signflow.local", AdminPassword: "Str0ngPass!"}
+	opts := Options{AdminEmail: "admin@signflow.local", AdminPassword: "Str0ngPass!123"}
 
 	require.NoError(t, Run(db, opts))
 
@@ -41,7 +41,7 @@ func TestRunSeedsAdminAndRole(t *testing.T) {
 	var user models.User
 	require.NoError(t, db.Where("email = ?", "admin@signflow.local").First(&user).Error)
 	assert.Equal(t, models.UserActive, user.Status)
-	require.NoError(t, bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte("Str0ngPass!")))
+	require.NoError(t, bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte("Str0ngPass!123")))
 
 	// The many2many link between the bootstrap user and super_admin role
 	// must be persisted at create time.
@@ -52,7 +52,7 @@ func TestRunSeedsAdminAndRole(t *testing.T) {
 
 func TestRunIsIdempotent(t *testing.T) {
 	db := newSeedDB(t)
-	opts := Options{AdminEmail: "admin@signflow.local", AdminPassword: "Str0ngPass!"}
+	opts := Options{AdminEmail: "admin@signflow.local", AdminPassword: "Str0ngPass!123"}
 
 	require.NoError(t, Run(db, opts))
 	require.NoError(t, Run(db, opts))
@@ -68,6 +68,26 @@ func TestRunIsIdempotent(t *testing.T) {
 
 func TestRunRejectsEmptyEmail(t *testing.T) {
 	db := newSeedDB(t)
-	err := Run(db, Options{AdminEmail: "  ", AdminPassword: "x"})
+	err := Run(db, Options{AdminEmail: "  ", AdminPassword: "Str0ngPass!123"})
+	require.Error(t, err)
+}
+
+func TestRunRejectsWeakPassword(t *testing.T) {
+	db := newSeedDB(t)
+	opts := Options{AdminEmail: "admin@signflow.local", AdminPassword: "short"}
+	err := Run(db, opts)
+	require.Error(t, err)
+
+	// No user or role may be created when seeding fails validation.
+	var n int64
+	db.Model(&models.User{}).Count(&n)
+	assert.Zero(t, n)
+	db.Model(&models.Role{}).Count(&n)
+	assert.Zero(t, n)
+}
+
+func TestRunRejectsWeakPasswordMissingSymbol(t *testing.T) {
+	db := newSeedDB(t)
+	err := Run(db, Options{AdminEmail: "admin@signflow.local", AdminPassword: "abcdefghijklmnop1234"})
 	require.Error(t, err)
 }

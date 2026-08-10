@@ -8,10 +8,13 @@ import (
 	"sort"
 	"time"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/ctxval"
+	"github.com/aeroxe/sign-flow/backend/internal/pkg/logger"
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/model"
+	"github.com/aeroxe/sign-flow/backend/internal/pkg/safego"
 )
 
 // Log is an audit log row capturing a state change.
@@ -92,6 +95,45 @@ func (s *Service) RecordLogin(ctx context.Context, username string, success bool
 		LoginAt:   time.Now(),
 	}
 	return s.db.WithContext(ctx).Create(&entry).Error
+}
+
+// PurgeOlderThan physically deletes audit and login log rows older than
+// cutoff. Unscoped is required (both models carry a soft-delete column);
+// otherwise rows would merely be marked deleted and the tables would keep
+// growing. Called periodically by the retention cleaner.
+func (s *Service) PurgeOlderThan(ctx context.Context, cutoff time.Time) error {
+	if err := s.db.WithContext(ctx).Unscoped().Where("created_at < ?", cutoff).Delete(&Log{}).Error; err != nil {
+		return err
+	}
+	return s.db.WithContext(ctx).Unscoped().Where("login_at < ?", cutoff).Delete(&LoginLog{}).Error
+}
+
+// StartCleaner runs a background goroutine that purges audit and login logs
+// older than retention, every interval. Panic-safe; stops when ctx is done.
+func (s *Service) StartCleaner(ctx context.Context, interval, retention time.Duration) {
+	safego.Go(func() {
+		if interval <= 0 {
+			interval = time.Hour
+		}
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				// retention <= 0 means "keep everything" — never purge, so a
+				// misconfigured zero cannot wipe the entire audit trail.
+				if retention <= 0 {
+					continue
+				}
+				cutoff := time.Now().Add(-retention)
+				if err := s.PurgeOlderThan(ctx, cutoff); err != nil {
+					logger.L().Warn("audit retention purge failed", zap.Error(err))
+				}
+			}
+		}
+	})
 }
 
 // diffKeys returns the keys that differ between before and after.

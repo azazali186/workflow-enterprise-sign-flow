@@ -161,6 +161,51 @@ func TestTwoRelaysDoNotDoublePublish(t *testing.T) {
 	}
 }
 
+func TestPurgeRemovesOldTerminalEvents(t *testing.T) {
+	db := setupDB(t)
+	ctx := context.Background()
+
+	// One old published event (2 days ago) and one fresh published event.
+	old := Event{Status: StatePublished, Payload: "x", AvailableAt: time.Now()}
+	require.NoError(t, db.Create(&old).Error)
+	require.NoError(t, db.Model(&old).Update("created_at", time.Now().Add(-48*time.Hour)).Error)
+	fresh := Event{Status: StatePublished, Payload: "y", AvailableAt: time.Now()}
+	require.NoError(t, db.Create(&fresh).Error)
+
+	// Dead-lettered 30 days ago must also be purged.
+	dead := Event{Status: StateDead, Payload: "z", AvailableAt: time.Now()}
+	require.NoError(t, db.Create(&dead).Error)
+	require.NoError(t, db.Model(&dead).Update("created_at", time.Now().Add(-30*24*time.Hour)).Error)
+
+	relay := NewRelay(db, &fakePublisher{}, func(ev *Event) string { return "s" }, metrics.New(), time.Hour)
+	relay.purge(ctx)
+
+	// Unscoped count: the purge must PHYSICALLY delete rows (the model carries
+	// a soft-delete column, so a plain Delete would leave them on disk).
+	var n int64
+	db.Unscoped().Model(&Event{}).Count(&n)
+	assert.Equal(t, int64(1), n, "only the fresh published event physically survives")
+	var left Event
+	require.NoError(t, db.Unscoped().First(&left).Error)
+	assert.Equal(t, fresh.ID, left.ID)
+}
+
+func TestStopDrainsInFlightDispatch(t *testing.T) {
+	db := setupDB(t)
+	pub := &fakePublisher{}
+	relay := NewRelay(db, pub, func(ev *Event) string { return "s" }, metrics.New(), 20*time.Millisecond)
+	relay.Start()
+
+	ctx := context.Background()
+	require.NoError(t, db.Transaction(func(tx *gorm.DB) error {
+		return Enqueue(ctx, tx, "contract", "drain", "contract_created", map[string]any{"id": "drain"})
+	}))
+
+	require.Eventually(t, func() bool { return pub.count() == 1 }, 3*time.Second, 20*time.Millisecond)
+	relay.Stop() // must return (not hang) after the in-flight cycle completes
+	relay.Stop() // idempotent: must not panic on a second call
+}
+
 func TestEnqueueSetsUUIDAndFields(t *testing.T) {
 	db := setupDB(t)
 	ctx := context.Background()

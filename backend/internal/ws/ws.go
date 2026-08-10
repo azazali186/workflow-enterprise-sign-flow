@@ -17,6 +17,7 @@ import (
 
 	"github.com/aeroxe/sign-flow/backend/internal/events"
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/logger"
+	"github.com/aeroxe/sign-flow/backend/internal/pkg/safego"
 	"github.com/aeroxe/sign-flow/backend/internal/registry"
 )
 
@@ -76,13 +77,18 @@ func (h *Hub) Count() int {
 	return len(h.clients)
 }
 
-// Close stops accepting new connections and closes all live ones (graceful
-// shutdown). Connections are removed by their own readPump goroutines.
+// Close stops accepting new connections, closes all live ones and removes them
+// immediately (graceful shutdown). The per-connection pumps exit on the next
+// I/O error; closing the underlying socket interrupts a blocked ReadMessage.
 func (h *Hub) Close() {
 	h.mu.Lock()
 	h.closed = true
 	for cl := range h.clients {
+		if uc := cl.conn.UnderlyingConn(); uc != nil {
+			_ = uc.Close()
+		}
 		_ = cl.conn.Close()
+		delete(h.clients, cl)
 	}
 	h.mu.Unlock()
 }
@@ -127,15 +133,16 @@ func (h *Hub) Serve(_ context.Context, c *app.RequestContext) {
 	err := upgrader.Upgrade(c, func(conn *websocket.Conn) {
 		cl := &client{conn: conn, send: make(chan []byte, sendBuffer)}
 		h.mu.Lock()
-		if !h.closed {
-			h.clients[cl] = true
-			logger.L().Info("websocket client connected", zap.Int("connections", h.Count()))
-			go h.writePump(cl)
-			h.readPump(cl)
-		} else {
+		if h.closed {
+			h.mu.Unlock()
 			_ = conn.Close() // hub already shut down: drop this upgrade
+			return
 		}
+		h.clients[cl] = true
 		h.mu.Unlock()
+		logger.L().Info("websocket client connected", zap.Int("connections", h.Count()))
+		safego.Go(func() { h.writePump(cl) })
+		h.readPump(cl) // blocks until disconnect; cleans up below
 		h.mu.Lock()
 		delete(h.clients, cl)
 		h.mu.Unlock()

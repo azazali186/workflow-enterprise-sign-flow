@@ -24,7 +24,29 @@ management platform. Built with **Hertz**, **GORM** (no raw SQL),
   `503` when a dependency is down.
 - **Resilient NATS:** the outbox relay never silently drops events — while
   NATS is unreachable it keeps reconnecting in the background and events
-  stay pending until delivered.
+  stay pending until delivered. Dead-lettered events (retry cap exceeded)
+  and old published events are purged automatically, so the outbox table
+  cannot grow without bound.
+- **Brute-force protection:** accounts lock out after `LOGIN_MAX_ATTEMPTS`
+  consecutive failed logins (unknown emails count too, so no enumeration)
+  for `LOGIN_LOCKOUT_MINUTES`; counters reset on success.
+- **Panic containment:** every background goroutine (outbox relay, event
+  bus, NATS reconnect, WS pumps) runs panic-safe so one worker bug cannot
+  crash the process.
+- **Slow-query logging:** GORM logs queries slower than 200ms at Warn, with
+  parameterised queries so no data values ever hit the logs.
+- **Seed hardening:** the bootstrap admin password is validated (>= 12
+  chars, letters + digits + symbols) and hashed with bcrypt cost 12.
+- **JWT issuer pinning:** tokens are verified against the fixed
+  `sign-flow` issuer as well as signature and expiry.
+- **Per-route rate limits:** `auth/login` gets a stricter per-IP budget
+  (`LOGIN_RATE_LIMIT_PER_MIN`, default 10) on top of the global limit, so a
+  distributed credential attack cannot hammer one IP.
+- **Audit retention:** audit and login logs are physically purged past
+  `AUDIT_RETENTION_DAYS` (default 90) by a background cleaner, so those
+  tables cannot grow without bound.
+- **Togglable public surface:** `/swagger` and `/metrics` can be disabled
+  with `SWAGGER_ENABLED` / `METRICS_ENABLED` in production.
 
 ## Quick Start
 
@@ -46,7 +68,7 @@ make run
 
 | Endpoint               | Purpose                          |
 |------------------------|----------------------------------|
-| `POST /api/v1/auth/login` | Obtain a bearer token         |
+| `POST /api/v1/auth/login` | Obtain a bearer token (429 while locked out) |
 | `POST /api/v1/auth/me`    | Current user + roles          |
 | `/swagger`             | Interactive Swagger UI           |
 | `/metrics`             | Prometheus metrics               |

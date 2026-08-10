@@ -16,6 +16,7 @@ import (
 	"github.com/aeroxe/sign-flow/backend/internal/models"
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/cryptoser"
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/ctxval"
+	"github.com/aeroxe/sign-flow/backend/internal/pkg/errs"
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm/schema"
@@ -88,6 +89,69 @@ func TestLoginSuspended(t *testing.T) {
 
 	_, err := svc.Login(context.Background(), LoginRequest{Email: "suspended@example.com", Password: "secret123"})
 	assert.Error(t, err)
+}
+
+func TestLoginLockoutAfterRepeatedFailures(t *testing.T) {
+	db, c, mgr, auditSvc := setup(t)
+	seedUser(t, db, "lockout@example.com", "secret123")
+	svc := NewServiceWithLockout(db, c, mgr, auditSvc, 2*time.Hour, 3, time.Hour)
+
+	ctx := context.Background()
+	// Two wrong attempts: still allowed (same 401), counter grows.
+	for i := 0; i < 2; i++ {
+		_, err := svc.Login(ctx, LoginRequest{Email: "lockout@example.com", Password: "wrong"})
+		assert.Error(t, err)
+	}
+	// Third wrong attempt arms the lockout.
+	_, err := svc.Login(ctx, LoginRequest{Email: "lockout@example.com", Password: "wrong"})
+	assert.Error(t, err)
+
+	// Even the correct password is now rejected until the lockout expires.
+	_, err = svc.Login(ctx, LoginRequest{Email: "lockout@example.com", Password: "secret123"})
+	var appErr *errs.Error
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, 429, appErr.Status)
+}
+
+func TestLoginLockoutClearsOnSuccess(t *testing.T) {
+	db, c, mgr, auditSvc := setup(t)
+	seedUser(t, db, "reset@example.com", "secret123")
+	svc := NewServiceWithLockout(db, c, mgr, auditSvc, 2*time.Hour, 5, time.Hour)
+
+	ctx := context.Background()
+	_, err := svc.Login(ctx, LoginRequest{Email: "reset@example.com", Password: "wrong"})
+	assert.Error(t, err)
+	_, err = svc.Login(ctx, LoginRequest{Email: "reset@example.com", Password: "wrong"})
+	assert.Error(t, err)
+
+	// A successful login resets the counter.
+	_, err = svc.Login(ctx, LoginRequest{Email: "reset@example.com", Password: "secret123"})
+	require.NoError(t, err)
+
+	// Counter cleared: two more failures do not lock out.
+	for i := 0; i < 2; i++ {
+		_, err = svc.Login(ctx, LoginRequest{Email: "reset@example.com", Password: "wrong"})
+		assert.Error(t, err)
+	}
+	_, err = svc.Login(ctx, LoginRequest{Email: "reset@example.com", Password: "secret123"})
+	require.NoError(t, err)
+}
+
+func TestLoginUnknownUserCountsAsFailure(t *testing.T) {
+	db, c, mgr, auditSvc := setup(t)
+	svc := NewServiceWithLockout(db, c, mgr, auditSvc, 2*time.Hour, 2, time.Hour)
+
+	ctx := context.Background()
+	_, err := svc.Login(ctx, LoginRequest{Email: "ghost@example.com", Password: "x"})
+	assert.Error(t, err)
+	_, err = svc.Login(ctx, LoginRequest{Email: "ghost@example.com", Password: "x"})
+	assert.Error(t, err)
+
+	// Account is now locked out even though it never existed (no enumeration).
+	_, err = svc.Login(ctx, LoginRequest{Email: "ghost@example.com", Password: "x"})
+	var appErr *errs.Error
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, 429, appErr.Status)
 }
 
 func TestLogoutInvalidatesSession(t *testing.T) {

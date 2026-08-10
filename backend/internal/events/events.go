@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/aeroxe/sign-flow/backend/internal/natsx"
+	"github.com/aeroxe/sign-flow/backend/internal/pkg/safego"
 )
 
 // Event is a domain event delivered on the bus.
@@ -48,11 +49,11 @@ func (b *Bus) Publish(ev Event) {
 	if len(subs) == 0 {
 		return
 	}
-	go func() {
+	safego.Go(func() {
 		for _, s := range subs {
 			s.OnEvent(ev)
 		}
-	}()
+	})
 }
 
 // NATSPublisher delivers outbox events to NATS JetStream.

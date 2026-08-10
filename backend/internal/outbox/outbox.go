@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -16,6 +17,7 @@ import (
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/metrics"
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/model"
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/retryutil"
+	"github.com/aeroxe/sign-flow/backend/internal/pkg/safego"
 	"go.uber.org/zap"
 )
 
@@ -81,7 +83,15 @@ type Relay struct {
 	claimToken string // unique per process for multi-instance safe claiming
 	maxRetries int
 	stop       chan struct{}
+	done       chan struct{}
+	stopOnce   sync.Once
 }
+
+// retention windows for outbox housekeeping.
+const (
+	retainPublished = 24 * time.Hour
+	retainDead      = 7 * 24 * time.Hour
+)
 
 // NewRelay builds the relay worker.
 func NewRelay(db *gorm.DB, pub Publisher, subject func(ev *Event) string, met *metrics.Collectors, poll time.Duration) *Relay {
@@ -99,33 +109,70 @@ func NewRelay(db *gorm.DB, pub Publisher, subject func(ev *Event) string, met *m
 		claimToken: tok,
 		maxRetries: defaultMaxRetries,
 		stop:       make(chan struct{}),
+		done:       make(chan struct{}),
 	}
 }
 
 // SetMaxRetries overrides the dead-letter cap (tests).
 func (r *Relay) SetMaxRetries(n int) { r.maxRetries = n }
 
-// Start launches the background relay loop.
+// Start launches the background relay loop (panic-safe).
 func (r *Relay) Start() {
-	go r.loop()
+	safego.Go(r.loop)
 }
 
-// Stop halts the relay loop.
-func (r *Relay) Stop() { close(r.stop) }
+// Stop halts the relay loop and waits for any in-flight dispatch to finish,
+// so the process never exits mid-publish. Safe to call multiple times.
+func (r *Relay) Stop() {
+	r.stopOnce.Do(func() {
+		close(r.stop)
+		<-r.done
+	})
+}
 
 func (r *Relay) loop() {
 	if r.poll <= 0 {
 		r.poll = 2 * time.Second
 	}
 	ticker := time.NewTicker(r.poll)
-	defer ticker.Stop()
+	defer func() {
+		ticker.Stop()
+		close(r.done)
+	}()
+	// Housekeeping runs less often than the poll: purge old terminal rows.
+	cleanup := time.NewTicker(time.Hour)
+	defer cleanup.Stop()
 	for {
 		select {
 		case <-r.stop:
 			return
 		case <-ticker.C:
 			r.dispatch(r.poll)
+		case <-cleanup.C:
+			purgeCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			r.purge(purgeCtx)
+			cancel()
 		}
+	}
+}
+
+// purge physically removes published and dead-lettered events older than
+// their retention windows so the outbox table cannot grow without bound.
+// Unscoped is required: Event embeds a soft-delete column, and a plain Delete
+// would only mark rows deleted while leaving them on disk.
+func (r *Relay) purge(ctx context.Context) {
+	now := time.Now()
+	res := r.db.WithContext(ctx).Unscoped().
+		Where("status = ? AND created_at < ?", StatePublished, now.Add(-retainPublished)).
+		Delete(&Event{})
+	if res.Error != nil {
+		logger.L().Warn("outbox purge failed (published)", zap.Error(res.Error))
+	}
+	res = r.db.WithContext(ctx).Unscoped().
+		Where("status = ? AND created_at < ?", StateDead, now.Add(-retainDead)).
+		Delete(&Event{})
+	if res.Error != nil {
+		logger.L().Warn("outbox purge failed (dead)", zap.Error(res.Error))
 	}
 }
 

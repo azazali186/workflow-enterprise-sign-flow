@@ -23,6 +23,19 @@ type Config struct {
 	ShutdownTimeout time.Duration
 	RateLimitPerMin int
 
+	// Login brute-force protection
+	LoginMaxAttempts    int
+	LoginLockoutMinutes int
+	LoginRateLimitMin   int
+
+	// Audit retention (purged periodically)
+	AuditRetentionDays  int
+	AuditCleanupMinutes int
+
+	// Public surface exposure
+	SwaggerEnabled bool
+	MetricsEnabled bool
+
 	// CORS (comma-separated allowed origins; empty = same-origin only)
 	CORSAllowedOrigins []string
 
@@ -58,27 +71,34 @@ type Config struct {
 func Load() *Config {
 	_ = godotenv.Load() // .env is optional; explicit env vars take precedence
 	return &Config{
-		Port:               getStr("PORT", "8080"),
-		Env:                getStr("ENV", "development"),
-		LogLevel:           getStr("LOG_LEVEL", "debug"),
-		MaxBodySize:        getInt("MAX_BODY_SIZE", 8<<20),
-		ReadTimeout:        getDur("READ_TIMEOUT", 30*time.Second),
-		WriteTimeout:       getDur("WRITE_TIMEOUT", 30*time.Second),
-		IdleTimeout:        getDur("IDLE_TIMEOUT", 120*time.Second),
-		ShutdownTimeout:    getDur("SHUTDOWN_TIMEOUT", 15*time.Second),
-		RateLimitPerMin:    getInt("RATE_LIMIT_PER_MIN", 120),
-		CORSAllowedOrigins: getList("CORS_ALLOWED_ORIGINS"),
-		DatabaseURL:        getStr("DATABASE_URL", "postgres://aeroxe:secret@localhost:5432/sign-flow?sslmode=disable"),
-		RedisURL:           getStr("REDIS_URL", "redis://localhost:6379"),
-		RedisTTL:           getDur("REDIS_TTL", 15*time.Minute),
-		NATSURL:            getStr("NATS_URL", "nats://localhost:4222"),
-		JWTSecret:          getStr("JWT_SECRET", "change-me-in-production-please-32b!"),
-		JWTExpiry:          getDur("JWT_EXPIRY", 24*time.Hour),
-		EncryptionKey:      getStr("ENCRYPTION_KEY", "dev-only-encryption-key-change-me!"),
-		WSMaxConnections:   getInt("WS_MAX_CONNECTIONS", 1000),
-		AdminEmail:         strings.ToLower(getStr("ADMIN_EMAIL", "admin@signflow.local")),
-		AdminPassword:      getStr("ADMIN_PASSWORD", "ChangeMe!123"),
-		OutboxPollInterval: getDur("OUTBOX_POLL_INTERVAL", 2*time.Second),
+		Port:                getStr("PORT", "8080"),
+		Env:                 getStr("ENV", "development"),
+		LogLevel:            getStr("LOG_LEVEL", "debug"),
+		MaxBodySize:         getInt("MAX_BODY_SIZE", 8<<20),
+		ReadTimeout:         getDur("READ_TIMEOUT", 30*time.Second),
+		WriteTimeout:        getDur("WRITE_TIMEOUT", 30*time.Second),
+		IdleTimeout:         getDur("IDLE_TIMEOUT", 120*time.Second),
+		ShutdownTimeout:     getDur("SHUTDOWN_TIMEOUT", 15*time.Second),
+		RateLimitPerMin:     getInt("RATE_LIMIT_PER_MIN", 120),
+		LoginMaxAttempts:    getInt("LOGIN_MAX_ATTEMPTS", 5),
+		LoginLockoutMinutes: getInt("LOGIN_LOCKOUT_MINUTES", 15),
+		LoginRateLimitMin:   getInt("LOGIN_RATE_LIMIT_PER_MIN", 10),
+		AuditRetentionDays:  getInt("AUDIT_RETENTION_DAYS", 90),
+		AuditCleanupMinutes: getInt("AUDIT_CLEANUP_MINUTES", 60),
+		SwaggerEnabled:      getBool("SWAGGER_ENABLED", true),
+		MetricsEnabled:      getBool("METRICS_ENABLED", true),
+		CORSAllowedOrigins:  getList("CORS_ALLOWED_ORIGINS"),
+		DatabaseURL:         getStr("DATABASE_URL", "postgres://aeroxe:secret@localhost:5432/sign-flow?sslmode=disable"),
+		RedisURL:            getStr("REDIS_URL", "redis://localhost:6379"),
+		RedisTTL:            getDur("REDIS_TTL", 15*time.Minute),
+		NATSURL:             getStr("NATS_URL", "nats://localhost:4222"),
+		JWTSecret:           getStr("JWT_SECRET", "change-me-in-production-please-32b!"),
+		JWTExpiry:           getDur("JWT_EXPIRY", 24*time.Hour),
+		EncryptionKey:       getStr("ENCRYPTION_KEY", "dev-only-encryption-key-change-me!"),
+		WSMaxConnections:    getInt("WS_MAX_CONNECTIONS", 1000),
+		AdminEmail:          strings.ToLower(getStr("ADMIN_EMAIL", "admin@signflow.local")),
+		AdminPassword:       getStr("ADMIN_PASSWORD", "ChangeMe!123"),
+		OutboxPollInterval:  getDur("OUTBOX_POLL_INTERVAL", 2*time.Second),
 	}
 }
 
@@ -102,6 +122,16 @@ func getDur(key string, def time.Duration) time.Duration {
 	if v := os.Getenv(key); v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			return d
+		}
+	}
+	return def
+}
+
+// getBool parses a boolean env value; invalid values fall back to the default.
+func getBool(key string, def bool) bool {
+	if v := os.Getenv(key); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
 		}
 	}
 	return def

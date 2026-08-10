@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"testing"
 	"time"
 
@@ -133,6 +134,32 @@ func TestHubDropsSlowConsumer(t *testing.T) {
 	}
 
 	require.Eventually(t, func() bool { return hub.Count() == 0 }, 5*time.Second, 20*time.Millisecond)
+}
+
+func TestHubCloseDropsConnections(t *testing.T) {
+	bus := events.NewBus()
+	hub := NewHub(bus, 10, OriginPolicy{})
+	addr := startTestServer(t, hub)
+
+	conn := dialWS(t, addr, "")
+	defer conn.Close()
+	require.Eventually(t, func() bool { return hub.Count() == 1 }, 2*time.Second, 20*time.Millisecond)
+
+	hub.Close()
+	require.Eventually(t, func() bool { return hub.Count() == 0 }, 2*time.Second, 20*time.Millisecond)
+
+	// After Close, new connections are rejected (429) rather than accepted.
+	u, _ := url.Parse("http://" + addr + "/ws")
+	c, err := hclient.NewClient(hclient.WithDialer(standard.NewDialer()))
+	require.NoError(t, err)
+	req, resp := protocol.AcquireRequest(), protocol.AcquireResponse()
+	req.SetRequestURI(u.String())
+	req.SetMethod("GET")
+	up := &websocket.ClientUpgrader{}
+	up.PrepareRequest(req)
+	require.NoError(t, c.Do(context.Background(), req, resp))
+	_, err = up.UpgradeResponse(req, resp)
+	require.Error(t, err, "upgrade after Close must fail")
 }
 
 func TestOriginPolicyCheck(t *testing.T) {

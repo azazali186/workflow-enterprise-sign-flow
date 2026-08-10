@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/aeroxe/sign-flow/backend/internal/pkg/logger"
+	"github.com/aeroxe/sign-flow/backend/internal/pkg/safego"
 )
 
 const (
@@ -68,6 +69,10 @@ func (c *Client) connect(url string) error {
 		Name:     Stream,
 		Subjects: []string{SubjectPrefix + ".>"},
 		Storage:  nats.FileStorage,
+		// Bound retention: keep ~7 days or up to 1 GiB so the JetStream
+		// store cannot grow without limit.
+		MaxAge:   7 * 24 * time.Hour,
+		MaxBytes: 1 << 30,
 	}); err != nil && !errors.Is(err, nats.ErrStreamNameAlreadyInUse) {
 		logger.L().Warn("nats stream setup failed", zap.Error(err))
 	}
@@ -114,7 +119,7 @@ func (c *Client) Close() {
 // (and the nats library cannot restore it) this loop re-dials. Stops when
 // ctx is cancelled. Safe to call once at boot.
 func (c *Client) StartReconnectLoop(ctx context.Context, url string, interval time.Duration) {
-	go func() {
+	safego.Go(func() {
 		if interval <= 0 {
 			interval = 5 * time.Second
 		}
@@ -132,5 +137,5 @@ func (c *Client) StartReconnectLoop(ctx context.Context, url string, interval ti
 			case <-ticker.C:
 			}
 		}
-	}()
+	})
 }

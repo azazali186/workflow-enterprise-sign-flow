@@ -40,13 +40,16 @@ func (m *Manager) Issue(userID string) (string, time.Duration, error) {
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(m.ttl)),
-			Issuer:    "sign-flow",
+			Issuer:    Issuer,
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString(m.secret)
 	return signed, m.ttl, err
 }
+
+// Issuer is the single trusted issuer for issued tokens.
+const Issuer = "sign-flow"
 
 // Parse verifies signature and expiry, returning claims.
 func (m *Manager) Parse(tokenStr string) (*Claims, error) {
@@ -61,6 +64,9 @@ func (m *Manager) Parse(tokenStr string) (*Claims, error) {
 		return nil, errs.ErrUnauthorized
 	}
 	if claims.Type != "access" || claims.UserID == "" {
+		return nil, errs.ErrUnauthorized
+	}
+	if claims.Issuer != Issuer {
 		return nil, errs.ErrUnauthorized
 	}
 	return claims, nil
