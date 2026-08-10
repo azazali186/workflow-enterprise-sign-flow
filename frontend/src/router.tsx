@@ -1,7 +1,28 @@
 import { lazy } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/layouts/AppLayout'
+import { MarketingLayout } from '@/features/marketing/layouts/MarketingLayout'
 import { GuestOnly, RequireAuth, RequirePermission } from '@/components/RouteGuards'
+
+// Public marketing pages (shared header + footer).
+const LandingPage = lazy(() =>
+  import('@/features/marketing/pages/LandingPage').then((m) => ({ default: m.LandingPage })),
+)
+const FeaturesPage = lazy(() =>
+  import('@/features/marketing/pages/FeaturesPage').then((m) => ({ default: m.FeaturesPage })),
+)
+const PricingPage = lazy(() =>
+  import('@/features/marketing/pages/PricingPage').then((m) => ({ default: m.PricingPage })),
+)
+const SecurityPage = lazy(() =>
+  import('@/features/marketing/pages/SecurityPage').then((m) => ({ default: m.SecurityPage })),
+)
+const AboutPage = lazy(() =>
+  import('@/features/marketing/pages/AboutPage').then((m) => ({ default: m.AboutPage })),
+)
+const ContactPage = lazy(() =>
+  import('@/features/marketing/pages/ContactPage').then((m) => ({ default: m.ContactPage })),
+)
 
 // Lazy-loaded feature pages (code splitting per route).
 const LoginPage = lazy(() =>
@@ -61,6 +82,18 @@ const LoginLogsPage = lazy(() =>
 )
 
 export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <MarketingLayout />,
+    children: [
+      { index: true, element: <LandingPage /> },
+      { path: 'features', element: <FeaturesPage /> },
+      { path: 'pricing', element: <PricingPage /> },
+      { path: 'security', element: <SecurityPage /> },
+      { path: 'about', element: <AboutPage /> },
+      { path: 'contact', element: <ContactPage /> },
+    ],
+  },
   {
     path: '/login',
     element: (
@@ -185,5 +218,6 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  { path: '*', element: <Navigate to="/app/dashboard" replace /> },
+  // Unknown deep links land on the landing page (public), not a dead end.
+  { path: '*', element: <Navigate to="/" replace /> },
 ])
